@@ -1,85 +1,140 @@
 <script>
-import { filterInput } from "../../utils/input";
 import { deleteLogout } from "../../services/index";
 
 export default {
   data() {
     return {
-      inputValue: "",
-      timeoutId: null,
       bearer: localStorage.getItem("bearer") || "",
     };
   },
-  mounted() {},
-
   methods: {
     async logout() {
       this.$router.push("/login");
       localStorage.setItem("bearer", "");
-      let result = await deleteLogout(this.$store.state.apiURI, this.bearer);
-      if (result.error) {
-        this.$store.dispatch("updateNotification", result);
-      } else {
-        this.$store.dispatch("updateNotification", result);
-      }
+      const result = await deleteLogout(this.$store.state.apiURI, this.bearer);
+      this.$store.dispatch("updateNotification", result);
     },
   },
 };
 </script>
 
 <template>
-  <nav class="">
-    <div class="container-fluid px-0 mx-0 custom-row">
-      <a class="custom-col-1 me-2">
+  <nav class="navbar-container py-3 px-4">
+    <div class="d-flex align-items-center justify-content-between w-100">
+      <!-- Logo (routes home) -->
+      <RouterLink to="/" class="d-flex align-items-center text-decoration-none">
         <img
-          src="@/assets/images/logo.png"
-          style="border: solid 3px rgba(127, 124, 124, 0.22)"
-          alt=""
-          width="48"
-          class="rounded-3"
+            src="@/assets/images/logo.png"
+            alt="BridgeHealth"
+            width="42"
+            height="42"
+            class="rounded-3 me-3 logo"
         />
-      </a>
-      <div class="custom-col-2 p-0">
-        <div class="row m-0 h-100 gx-2">
-          <div class="col-6">
-            <div class="h-100 rounded-3">
-            </div>
-          </div>
-          <div class="col-3">
-            <RouterLink v-if="bearer.length < 1" to="/login">
-              <button class="btn btn-primary w-100 h-100">Login</button>
-            </RouterLink>
-            <RouterLink v-else-if="$route.path === '/dashboard'" to="/">
-              <button class="btn btn-primary w-100 h-100">Home</button>
-            </RouterLink>
-            <RouterLink v-else to="/dashboard">
-              <button class="btn btn-primary w-100 h-100">Dashboard</button>
-            </RouterLink>
-          </div>
-          <div class="col-3">
-            <RouterLink v-if="bearer.length < 1" to="/signup">
-              <button class="btn btn-primary w-100 h-100">Signup</button>
-            </RouterLink>
-            <button v-else class="btn btn-primary w-100 h-100" @click="logout">
-              Logout
-            </button>
-          </div>
-        </div>
+        <span class="fw-bold text-white fs-5 brand-text">BridgeHealth</span>
+      </RouterLink>
+
+      <!-- Nav Actions -->
+      <div class="d-flex align-items-center gap-3">
+        <!-- Not Logged In -->
+        <RouterLink
+            v-if="bearer.length < 1"
+            to="/login"
+            class="btn-nav text-decoration-none"
+        >
+          Login
+        </RouterLink>
+        <RouterLink
+            v-if="bearer.length < 1"
+            to="/signup"
+            class="btn-nav text-decoration-none"
+        >
+          Sign Up
+        </RouterLink>
+
+        <!-- Primary Logout (no gradient, frosted-glow) -->
+        <button
+            v-if="bearer.length > 0"
+            class="btn-frosted-primary"
+            @click="logout"
+        >
+          Logout
+        </button>
       </div>
     </div>
   </nav>
 </template>
 
 <style lang="scss" scoped>
-.custom-row {
-  display: flex;
+.navbar-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  color: #fff;
+  transition: all 0.3s ease;
 }
 
-.custom-col-1 {
-  width: 48px;
+.logo {
+  border: solid 2px rgba(255, 255, 255, 0.15);
+  transition: 0.3s ease;
+}
+.logo:hover {
+  transform: rotate(-3deg) scale(1.05);
 }
 
-.custom-col-2 {
-  flex-grow: 1;
+.brand-text {
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+}
+
+/* 🔹 Secondary Frosted Buttons */
+.btn-nav {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 0.45rem 1rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.btn-nav:hover {
+  background: rgba(0, 255, 170, 0.15);
+  border-color: rgba(0, 255, 170, 0.25);
+  box-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
+  transform: translateY(-2px);
+  color: #00ffaa;
+}
+
+/* ⚡ Frosted Primary Button (Logout) */
+.btn-frosted-primary {
+  background: rgba(0, 255, 170, 0.15);
+  border: 1px solid rgba(0, 255, 170, 0.4);
+  color: #00ffaa;
+  padding: 0.5rem 1.2rem;
+  border-radius: 0.6rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  box-shadow: 0 0 10px rgba(0, 255, 170, 0.25);
+  transition: all 0.25s ease;
+}
+
+.btn-frosted-primary:hover {
+  background: rgba(0, 255, 170, 0.25);
+  border-color: rgba(0, 255, 170, 0.6);
+  box-shadow: 0 0 16px rgba(0, 255, 170, 0.4);
+  transform: translateY(-2px);
+  color: #00ffaa;
+}
+
+@media (max-width: 768px) {
+  .navbar-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

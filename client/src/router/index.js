@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import authRedirect from "../utils/authRedirect";
 
-import Index from "../views/Index.vue";
 import Login from "../views/Login.vue";
 import Signup from "../views/Signup.vue";
 import Reset from "../views/Reset.vue";
@@ -12,8 +11,8 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      name: "home",
-      component: Index,
+      name: "dashboard",
+      component: Dashboard,
     },
     {
       path: "/signup",
@@ -33,17 +32,11 @@ const router = createRouter({
       component: Reset,
       beforeEnter: authRedirect,
     },
-    {
-      path: "/dashboard",
-      name: "dashboard",
-      component: Dashboard,
-      beforeEnter: authRedirect,
-    }
   ],
 });
 
 router.beforeEach((to, from, next) => {
-  document.title = "branch | " + to.name;
+  document.title = "BridgeHealth | " + to.name;
   next();
 });
 

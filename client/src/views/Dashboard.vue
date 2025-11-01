@@ -35,20 +35,13 @@ export default {
             downloadUrl: r.downloadUrl,
           }));
           this.filteredRecords = this.records;
-        } else {
-          console.warn("No records found or invalid response:", result);
         }
       }
-    } else
-    {
+    } else {
       this.$router.push("/login");
     }
   },
   methods: {
-    setActive(num) {
-      this.activeNum = num;
-    },
-
     filterRecords() {
       const query = this.searchQuery.toLowerCase();
       this.filteredRecords = this.records.filter((r) =>
@@ -67,9 +60,6 @@ export default {
       }
 
       this.uploading = true;
-      console.log("📄 Selected file:", file.name);
-
-      // Temporary placeholder while uploading
       const tempRecord = {
         fileName: file.name,
         type: "Uploaded File",
@@ -91,12 +81,8 @@ export default {
             recordType,
             timestamp
         );
-
         if (result.error) throw new Error(result.error);
 
-        console.log("✅ File uploaded successfully:", result);
-
-        // 🔄 Immediately fetch updated records (with confirmed Solana TX + verified hash)
         const updated = await getFiles(this.$store.state.apiURI, bearer);
         if (updated.records && Array.isArray(updated.records)) {
           this.records = updated.records.map((r) => ({
@@ -113,12 +99,11 @@ export default {
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
-        this.records.shift(); // remove placeholder
+        this.records.shift();
       } finally {
         this.uploading = false;
       }
-    }
-
+    },
   },
 };
 </script>
@@ -127,9 +112,9 @@ export default {
   <div class="container py-5 px-sm-5 text-white">
     <Nav />
 
-    <div class="rounded-3 mt-4">
+    <div class="rounded-3 mt-2">
       <Transition name="fade" mode="out-in">
-        <div class="rounded-3 frosted p-4 shadow-lg">
+        <div class="rounded-4 frosted p-4 shadow-lg">
           <!-- Header -->
           <div class="mb-5 d-flex justify-content-between align-items-center">
             <h2 class="fw-bold mb-0">Dashboard</h2>
@@ -151,9 +136,7 @@ export default {
                 Health Records
               </h5>
 
-
-
-              <!-- Hidden file input -->
+              <!-- File Upload -->
               <input
                   ref="fileInput"
                   type="file"
@@ -161,8 +144,6 @@ export default {
                   class="d-none"
                   @change="handleFileSelect"
               />
-
-              <!-- Upload button -->
               <button
                   class="btn btn-primary btn-sm px-3"
                   @click="$refs.fileInput.click()"
@@ -174,56 +155,66 @@ export default {
             <!-- Search bar -->
             <input
                 type="text"
-                class="form-control frosted-sub text-white mb-3"
+                class="form-control frosted-sub text-white mb-4"
                 placeholder="Search records..."
                 v-model="searchQuery"
                 @input="filterRecords"
             />
 
-            <div
-                v-if="filteredRecords.length"
-                v-for="(record, i) in filteredRecords"
-                :key="i"
-                class="record-item p-3 mb-3 rounded-3 frosted-inner"
-            >
-              <div
-                  class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center"
-              >
-                <div>
-                  <h6 class="mb-1 fw-semibold">{{ record.fileName }}</h6>
-                  <p class="mb-0 text-white-50 small">
-                    {{ record.type }} · {{ record.uploadedAt }}
-                  </p>
-                  <a
-                      v-if="record.downloadUrl"
-                      :href="record.downloadUrl"
-                      target="_blank"
-                      class="btn btn-outline-light btn-sm mt-2"
-                  >
-                    Download
-                  </a>
-                </div>
-
-                <div class="text-sm-end mt-3 mt-sm-0">
-                  <a
-                      v-if="record.solanaTx !== 'pending...'"
-                      :href="`https://explorer.solana.com/tx/${record.solanaTx}?cluster=devnet`"
-                      target="_blank"
-                      class="text-decoration-none text-info small"
-                  >
-                    {{ record.solanaTx.slice(0, 8) }}...
-                  </a>
-                  <span v-else class="text-white-50 small"></span>
-
-                  <!-- Integrity Badge -->
-                  <div
-                      class="badge ms-2"
-                      :class="record.verified ? 'bg-success' : 'bg-danger'"
-                  >
-                    {{ record.verified ? "Verified" : "Tampered" }}
-                  </div>
-                </div>
-              </div>
+            <!-- Table -->
+            <div v-if="filteredRecords.length" class="table-responsive">
+              <table class="table table-borderless align-middle text-white">
+                <thead>
+                <tr class="text-uppercase text-white-50 small">
+                  <th scope="col">File Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Date Uploaded</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Solana TX</th>
+                  <th scope="col" class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr
+                    v-for="(record, i) in filteredRecords"
+                    :key="i"
+                    class="frosted-inner rounded-3"
+                >
+                  <td class="fw-semibold">{{ record.fileName }}</td>
+                  <td class="text-white-50">{{ record.type }}</td>
+                  <td class="text-white-50">{{ record.uploadedAt }}</td>
+                  <td>
+                      <span
+                          class="badge"
+                          :class="record.verified ? 'bg-success' : 'bg-danger'"
+                      >
+                        {{ record.verified ? "Verified" : "Tampered" }}
+                      </span>
+                  </td>
+                  <td>
+                    <a
+                        v-if="record.solanaTx !== 'pending...'"
+                        :href="`https://explorer.solana.com/tx/${record.solanaTx}?cluster=devnet`"
+                        target="_blank"
+                        class="text-info text-decoration-none small"
+                    >
+                      {{ record.solanaTx.slice(0, 8) }}...
+                    </a>
+                    <span v-else class="text-white-50 small">Pending...</span>
+                  </td>
+                  <td class="text-end">
+                    <a
+                        v-if="record.downloadUrl"
+                        :href="record.downloadUrl"
+                        target="_blank"
+                        class="btn btn-outline-light btn-sm"
+                    >
+                      Download
+                    </a>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
             </div>
 
             <div v-else class="text-center text-white-50 py-5">
@@ -255,21 +246,25 @@ export default {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.5rem;
   padding: 0.35rem 0.75rem;
+  color: #fff;
 }
 
-.frosted-inner {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: 0.2s;
+.table {
+  color: #fff;
 }
-
-.frosted-inner:hover {
+.table thead tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.table tbody tr {
+  transition: background 0.2s ease;
+}
+.table tbody tr:hover {
   background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px);
 }
-
-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+.badge {
+  font-size: 0.75rem;
+  padding: 0.4em 0.6em;
+  border-radius: 0.5rem;
 }
 
 .btn-outline-light {
@@ -280,9 +275,7 @@ input::placeholder {
   background: rgba(255, 255, 255, 0.15);
 }
 
-h2,
-h5,
-h6 {
-  color: #fff;
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>
