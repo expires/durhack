@@ -1,47 +1,60 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+<script>
+import { RouterView } from "vue-router";
+import { getAuth } from "./services/index";
+
+import Notification from "./components/elements/Notification.vue";
+
+export default {
+  components: { Notification },
+  data() {
+    return {
+      notification: {},
+    };
+  },
+  watch: {
+    "$store.state.notification": {
+      immediate: true,
+      handler(notif) {
+        this.notification = notif;
+      },
+    },
+  },
+  async mounted() {
+    let bearer = localStorage.getItem("bearer");
+    if (bearer?.length) {
+      const auth = await getAuth(this.$store.state.apiURI, bearer);
+      if (!auth.success) {
+        localStorage.setItem("bearer", "");
+      }
+    }
+  },
+  methods: {},
+};
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <div>
+    <RouterView v-slot="{ Component }">
+      <Transition name="fade" mode="out-in">
+        <Component :is="Component" :key="$route.path" />
+      </Transition>
+    </RouterView>
+    <Notification
+      :key="notification"
+      v-if="notification"
+      :notif="notification"
+    />
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
+<style lang="scss">
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -1,0 +1,204 @@
+@import "@/assets/styles/vars.scss";
+
+h4 {
+  user-select: none;
+}
+
+.skill-div {
+  overflow: auto;
+  overflow-x: hidden;
+  transition: none;
+}
+
+.skill {
+  border: $border-color 3px solid;
+  margin: 0.1rem;
+  width: auto;
+  border-radius: 50rem;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+  animation: fadein ease 400ms;
+  .icon {
+    height: 1.5rem;
+    margin-right: 0.5rem;
+    border-radius: 20%;
+  }
+}
+
+.editSkill {
+  position: relative;
+  &:hover {
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background-color: rgba(255, 0, 0, 0.25);
+      z-index: 100;
+    }
+    animation: shiver 1ms infinite;
+    border: red solid 3px;
+    color: red;
+  }
+}
+
+.edit {
+  transition: ease 200ms;
+
+  &:hover {
+    background-color: $edit-bg;
+  }
+
+  &:focus {
+    background-color: $edit-bg;
+
+    &-within input {
+      background-color: $edit-bg;
+    }
+  }
+}
+
+.change-pic {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  transition: ease 200ms;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  opacity: 0;
+  user-select: none;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  input {
+    display: none;
+  }
+}
+
+.change-pic .-label {
+  cursor: pointer;
+  height: 100%;
+  width: 100%;
+  user-select: none;
+}
+
+.image-container {
+  width: 100%;
+  max-width: 100%;
+  user-select: none;
+  .image {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%;
+    overflow: hidden;
+    user-select: none;
+
+    img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}
+
+.btn-socials {
+  background-color: transparent;
+  border: $border-color 3px solid;
+  transition: $transition;
+  cursor: pointer;
+  img {
+    color: white !important;
+    min-width: 1.75rem;
+    max-width: 1.75rem;
+    filter: invert(1);
+  }
+  &:hover {
+    opacity: 0.75;
+  }
+}
+
+.btn-socials-edit {
+  .img-container {
+    position: relative;
+    color: white !important;
+    width: 1.75rem;
+    height: 1.75rem;
+    img {
+      height: 100%;
+      width: 100%;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+  }
+  &:hover {
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background-color: rgba(255, 0, 0, 0.25);
+      z-index: 100;
+    }
+
+    animation: shiver 1ms infinite;
+    border: red solid 3px;
+    color: red;
+  }
+}
+
+@keyframes fadein {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes shiver {
+  0% {
+    transform: translate(1px, 1px);
+  }
+  25% {
+    transform: translate(-1px, -1px);
+  }
+  50% {
+    transform: translate(1px, -1px);
+  }
+  75% {
+    transform: translate(-1px, 1px);
+  }
+  100% {
+    transform: translate(1px, 1px);
+  }
+}
+
+@keyframes shiver {
+  0% {
+    transform: translate(0.5px, 0.5px);
+  }
+  25% {
+    transform: translate(-0.5px, -0.5px);
+  }
+  50% {
+    transform: translate(0.5px, -0.5px);
+  }
+  75% {
+    transform: translate(-0.5px, 0.5px);
+  }
+  100% {
+    transform: translate(0.5px, 0.5px);
+  }
+}

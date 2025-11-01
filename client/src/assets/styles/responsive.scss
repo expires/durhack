@@ -1,0 +1,105 @@
+$default-h1: 2.5rem;
+$default-h2: 2rem;
+$default-h3: 1.75rem;
+$default-h4: 1.5rem;
+$default-h5: 1.25rem;
+$default-h6: 1rem;
+$default-p: 1rem;
+$default-textarea: 1rem;
+$default-input: 1rem;
+$default-div: 1rem;
+
+$large-h1: 2.8125rem;
+$large-h2: 2.5rem;
+$large-h3: 2.1875rem;
+$large-h4: 1.875rem;
+$large-h5: 1.5625rem;
+$large-h6: 1.25rem;
+$large-p: 1.25rem;
+$large-textarea: 1.25rem;
+$large-input: 1.25rem;
+$large-div: 1.25rem;
+
+@media screen and (min-width: 0px) and (max-width: 1920px) {
+  h1 {
+    font-size: $default-h1;
+  }
+
+  h2 {
+    font-size: $default-h2;
+  }
+
+  h3 {
+    font-size: $default-h3;
+  }
+
+  h4 {
+    font-size: $default-h4;
+  }
+
+  h5 {
+    font-size: $default-h5;
+  }
+
+  h6 {
+    font-size: $default-h6;
+  }
+
+  p {
+    font-size: $default-p;
+  }
+
+  textarea {
+    font-size: $default-textarea;
+  }
+
+  input {
+    font-size: $default-input;
+  }
+
+  div {
+    font-size: $default-div;
+  }
+}
+
+@media screen and (min-width: 1921px) {
+  h1 {
+    font-size: $large-h1;
+  }
+
+  h2 {
+    font-size: $large-h2;
+  }
+
+  h3 {
+    font-size: $large-h3;
+  }
+
+  h4 {
+    font-size: $large-h4;
+  }
+
+  h5 {
+    font-size: $large-h5;
+  }
+
+  h6 {
+    font-size: $large-h6;
+  }
+
+  p {
+    font-size: $large-p;
+  }
+
+  textarea {
+    font-size: $large-textarea;
+  }
+
+  input {
+    font-size: $large-input;
+  }
+
+  div {
+    font-size: $large-div;
+  }
+}

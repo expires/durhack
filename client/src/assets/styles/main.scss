@@ -1,0 +1,198 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito&display=swap");
+@import "vars";
+
+* {
+  font-family: "Nunito", sans-serif !important;
+  color: white;
+  transition: ease 100ms;
+  outline: none !important;
+}
+
+button:focus {
+  box-shadow: 0 0 0 0.2rem rgba(0, 255, 170, 0.5) !important;
+}
+
+body {
+  min-height: 100vh;
+  background-color: #101110;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+input {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  transition: $transition;
+  &::placeholder {
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+    color: white;
+  }
+}
+
+textarea {
+  background-color: transparent;
+
+  width: 100%;
+  height: 143px;
+  overflow: auto;
+  resize: none;
+  &:focus {
+    outline: none;
+  }
+  &::placeholder {
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+    color: white;
+  }
+}
+
+.active {
+  position: absolute;
+  width: calc((100% / 3));
+  height: calc(100%);
+  background-color: $text-muted-green;
+  z-index: -100;
+  transition: 200ms ease;
+}
+
+.color-primary {
+  color: $text-primary;
+}
+
+.text-muted {
+  color: $text-muted;
+}
+
+// BUTTONS
+.btn-primary {
+  background-color: transparent !important;
+  border: solid 3px $text-primary;
+  font-weight: bolder;
+  color: $text-primary;
+  transition: $transition;
+
+  &:hover {
+    background-color: $border-color;
+    border: solid 3px $text-primary;
+    font-weight: bolder;
+    color: $text-primary;
+  }
+
+  &:active {
+    background-color: $border-color !important;
+    border: solid 3px $text-primary;
+    font-weight: bolder !important;
+    transform: scale(0.98);
+  }
+
+  &:disabled,
+  &[disabled] {
+    background-color: transparent !important;
+    border: solid 3px $text-primary;
+    font-weight: bolder !important;
+    color: $text-primary;
+    transition: $transition;
+  }
+}
+
+.btn-nav {
+  cursor: pointer;
+}
+
+.btn-home:hover {
+  cursor: pointer;
+  background-color: $text-muted-green;
+}
+
+// END BUTTONS
+
+.frosted {
+  background: url("@/assets/images/frosted.png") no-repeat center center fixed;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+
+  width: 100%;
+  border: solid 3px $border-color;
+}
+
+// CONTAINERS
+.h-main {
+  min-height: 50vh;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+  transition: $transition;
+}
+
+.main {
+  min-height: 100vh;
+}
+
+.input-container {
+  background: url("@/assets/images/frosted.png") no-repeat center center fixed;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  border: solid 3px $border-color;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  i {
+    padding: 0 10px;
+    color: #555;
+  }
+}
+
+.button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.spinner-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.inner-container {
+  max-height: 40vh;
+}
+// END CONTAINERS
+
+:focus::placeholder {
+  opacity: 0;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: inherit;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 20rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
