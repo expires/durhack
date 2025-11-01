@@ -90,6 +90,8 @@ export const uploadFile = async (req, res) => {
                 });
 
                 const signature = await connection.sendTransaction(tx, [payer]);
+                await connection.confirmTransaction(signature, "confirmed");
+
                 console.log("✅ Solana TX:", signature);
 
                 // 4️⃣ Save record to MongoDB

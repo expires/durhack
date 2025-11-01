@@ -1,11 +1,5 @@
 <script>
-import {
-  getAuth,
-  postUpload,
-  getFiles,
-  getVerify,
-} from "../services/index";
-import { createConsent, getConsents, revokeConsent } from "../services/consents";
+import { getAuth, postUpload, getFiles } from "../services/index";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
@@ -15,77 +9,46 @@ export default {
       users: [],
       activeNum: 0,
       records: [],
+      filteredRecords: [],
       uploading: false,
-      verifyingId: null,
-      consents: [],
-      loadingConsents: false,
-      showConsentForm: false,
-      consentSubmitting: false,
-      newConsent: {
-        providerId: "",
-        scopes: "records.read",
-        purpose: "care",
-        expiresAt: "",
-      },
+      searchQuery: "",
     };
   },
   async mounted() {
     this.$store.dispatch("updateUsers", this.users);
     const bearer = localStorage.getItem("bearer");
-    if (!bearer?.length) return;
 
-    const auth = await getAuth(this.$store.state.apiURI, bearer);
-    if (!auth.success) {
-      localStorage.setItem("bearer", "");
-      return;
-    }
-
-    await this.fetchRecords();
-    await this.fetchConsents();
-  },
-  methods: {
-    setActive(num) {
-      this.activeNum = num;
-    },
-    formatDate(value) {
-      if (!value) return "—";
-      return new Date(value).toLocaleDateString();
-    },
-    async fetchRecords() {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) return;
-
-      try {
+    if (bearer?.length) {
+      const auth = await getAuth(this.$store.state.apiURI, bearer);
+      if (!auth.success) {
+        localStorage.setItem("bearer", "");
+      } else {
         const result = await getFiles(this.$store.state.apiURI, bearer);
         if (result.records && Array.isArray(result.records)) {
           this.records = result.records.map((r) => ({
-            id: r.id || r._id,
+            _id: r._id,
             fileName: r.fileName,
-            recordType: r.recordType || "Health Record",
+            type: r.recordType || "Health Record",
+            verified: r.verified ?? false,
             solanaTx: r.solanaTx,
-            hash: r.hash,
-            uploadedAt: r.uploadedAt || r.timestamp,
+            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
             downloadUrl: r.downloadUrl,
-            verified: r.verified ?? true,
           }));
+          this.filteredRecords = this.records;
         }
-      } catch (err) {
-        console.error("Failed to fetch records:", err);
       }
+    } else {
+      this.$router.push("/login");
+    }
+  },
+  methods: {
+    filterRecords() {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredRecords = this.records.filter((r) =>
+          r.fileName.toLowerCase().includes(query)
+      );
     },
-    async fetchConsents() {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) return;
-      this.loadingConsents = true;
-      try {
-        const result = await getConsents(this.$store.state.apiURI, bearer);
-        this.consents = result.consents || [];
-      } catch (err) {
-        console.error("Failed to fetch consents:", err);
-      } finally {
-        this.loadingConsents = false;
-      }
-    },
+
     async handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -98,123 +61,47 @@ export default {
 
       this.uploading = true;
       const tempRecord = {
-        id: `temp-${Date.now()}`,
         fileName: file.name,
-        recordType: "Uploaded File",
+        type: "Uploaded File",
         verified: false,
         solanaTx: "pending...",
         uploadedAt: new Date().toISOString().split("T")[0],
       };
       this.records.unshift(tempRecord);
+      this.filteredRecords = this.records;
 
       try {
         const recordType = "General Record";
         const timestamp = new Date().toISOString();
 
         const result = await postUpload(
-          this.$store.state.apiURI,
-          bearer,
-          file,
-          recordType,
-          timestamp
+            this.$store.state.apiURI,
+            bearer,
+            file,
+            recordType,
+            timestamp
         );
-
         if (result.error) throw new Error(result.error);
 
-        await this.fetchRecords();
+        const updated = await getFiles(this.$store.state.apiURI, bearer);
+        if (updated.records && Array.isArray(updated.records)) {
+          this.records = updated.records.map((r) => ({
+            _id: r._id,
+            fileName: r.fileName,
+            type: r.recordType || "Health Record",
+            verified: r.verified ?? false,
+            solanaTx: r.solanaTx,
+            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
+            downloadUrl: r.downloadUrl,
+          }));
+          this.filteredRecords = this.records;
+        }
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
-        this.records = this.records.filter((r) => r.id !== tempRecord.id);
+        this.records.shift();
       } finally {
         this.uploading = false;
-      }
-    },
-    async verifyRecord(record) {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) {
-        alert("You must be logged in to verify records.");
-        return;
-      }
-      this.verifyingId = record.id;
-      try {
-        const result = await getVerify(
-          this.$store.state.apiURI,
-          bearer,
-          record.id
-        );
-        if (result.error) throw new Error(result.error);
-        record.verified = result.verified;
-        record.verificationDetails = result.details;
-        alert(
-          result.verified
-            ? "✅ Verified: file matches Solana and GCS"
-            : "⚠️ Verification failed. Hash mismatch."
-        );
-      } catch (err) {
-        console.error("Verification failed:", err);
-        alert("Verification failed: " + err.message);
-      } finally {
-        this.verifyingId = null;
-      }
-    },
-    async handleCreateConsent() {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) return alert("Please log in first.");
-      if (!this.newConsent.providerId || !this.newConsent.scopes) {
-        return alert("Provider ID and scopes are required.");
-      }
-      this.consentSubmitting = true;
-      try {
-        const data = {
-          providerId: this.newConsent.providerId,
-          scopes: this.newConsent.scopes
-            .split(",")
-            .map((scope) => scope.trim())
-            .filter(Boolean),
-          purpose: this.newConsent.purpose,
-          expiresAt: this.newConsent.expiresAt || null,
-        };
-        const result = await createConsent(
-          this.$store.state.apiURI,
-          bearer,
-          data
-        );
-        if (result.success) {
-          this.showConsentForm = false;
-          this.newConsent = {
-            providerId: "",
-            scopes: "records.read",
-            purpose: "care",
-            expiresAt: "",
-          };
-          await this.fetchConsents();
-        } else {
-          alert(result.error || "Failed to create consent");
-        }
-      } catch (err) {
-        console.error("Error creating consent:", err);
-        alert("Failed to create consent");
-      } finally {
-        this.consentSubmitting = false;
-      }
-    },
-    async handleRevokeConsent(consentId) {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) return alert("Please log in first.");
-      try {
-        const result = await revokeConsent(
-          this.$store.state.apiURI,
-          bearer,
-          consentId
-        );
-        if (result.success) {
-          await this.fetchConsents();
-        } else {
-          alert(result.error || "Failed to revoke consent");
-        }
-      } catch (err) {
-        console.error("Error revoking consent:", err);
       }
     },
   },
@@ -225,262 +112,170 @@ export default {
   <div class="container py-5 px-sm-5 text-white">
     <Nav />
 
-    <div class="py-5">
-      <div class="frosted rounded-3 p-1 mt-2">
-        <div class="h-100 rounded-3 row g-0 position-relative">
-          <div
-            class="active rounded-3"
-            :style="{ left: activeNum * (100 / 3) + '%' }"
-          ></div>
-          <div
-            class="col-4 text-center fw-bold p-2 rounded-3 btn-nav"
-            @click="setActive(0)"
-          >
-            Records
+    <div class="rounded-3 mt-2">
+      <Transition name="fade" mode="out-in">
+        <div class="rounded-4 frosted p-4 shadow-lg">
+          <!-- Header -->
+          <div class="mb-5 d-flex justify-content-between align-items-center">
+            <h2 class="fw-bold mb-0">Dashboard</h2>
+            <button
+                v-if="uploading"
+                class="btn btn-outline-light btn-sm px-3"
+                disabled
+            >
+              Uploading...
+            </button>
           </div>
-          <div
-            class="col-4 text-center fw-bold p-2 rounded-3 btn-nav"
-            @click="setActive(1)"
-          >
-            Consents
-          </div>
-          <div
-            class="col-4 text-center fw-bold p-2 rounded-3 btn-nav"
-            @click="setActive(2)"
-          >
-            Activity
-          </div>
-        </div>
-      </div>
 
-      <div class="rounded-3 mt-3">
-        <Transition name="fade" mode="out-in">
-          <div class="rounded-3 text-start frosted p-4" :key="activeNum">
-            <div v-if="activeNum === 0">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">Health Records</h4>
-                <div class="d-flex align-items-center gap-2">
-                  <input
-                    ref="fileInput"
-                    type="file"
-                    accept=".pdf,.jpg,.png,.txt"
-                    class="d-none"
-                    @change="handleFileSelect"
-                  />
-                  <button
-                    class="btn btn-primary btn-sm px-3"
-                    :disabled="uploading"
-                    @click="$refs.fileInput.click()"
-                  >
-                    <span v-if="uploading">Uploading…</span>
-                    <span v-else>+ Upload New</span>
-                  </button>
-                </div>
-              </div>
+          <!-- Records Section -->
+          <div class="p-3 rounded-3">
+            <div
+                class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-3"
+            >
+              <h5 class="text-uppercase text-white-50 mb-0">
+                Health Records
+              </h5>
 
-              <div v-if="!records.length" class="text-center text-muted py-4">
-                No records yet. Upload your first document.
-              </div>
-
-              <div
-                v-for="record in records"
-                :key="record.id"
-                class="record-item p-3 mb-3 rounded-3 frosted-inner"
+              <!-- File Upload -->
+              <input
+                  ref="fileInput"
+                  type="file"
+                  accept=".pdf,.jpg,.png,.txt"
+                  class="d-none"
+                  @change="handleFileSelect"
+              />
+              <button
+                  class="btn btn-primary btn-sm px-3"
+                  @click="$refs.fileInput.click()"
               >
-                <div class="row g-3 align-items-start">
-                  <div class="col-12 col-md-6">
-                    <h6 class="mb-1 fw-semibold">{{ record.fileName }}</h6>
-                    <p class="mb-1 text-muted">
-                      {{ record.recordType }} · {{ formatDate(record.uploadedAt) }}
-                    </p>
-                    <div class="d-flex gap-2 flex-wrap">
-                      <a
+                + Upload New
+              </button>
+            </div>
+
+            <!-- Search bar -->
+            <input
+                type="text"
+                class="form-control frosted-sub text-white mb-4"
+                placeholder="Search records..."
+                v-model="searchQuery"
+                @input="filterRecords"
+            />
+
+            <!-- Table -->
+            <div v-if="filteredRecords.length" class="table-responsive">
+              <table class="table table-borderless align-middle text-white">
+                <thead>
+                <tr class="text-uppercase text-white-50 small">
+                  <th scope="col">File Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Date Uploaded</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Solana TX</th>
+                  <th scope="col" class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr
+                    v-for="(record, i) in filteredRecords"
+                    :key="i"
+                    class="frosted-inner rounded-3"
+                >
+                  <td class="fw-semibold">{{ record.fileName }}</td>
+                  <td class="text-white-50">{{ record.type }}</td>
+                  <td class="text-white-50">{{ record.uploadedAt }}</td>
+                  <td>
+                      <span
+                          class="badge"
+                          :class="record.verified ? 'bg-success' : 'bg-danger'"
+                      >
+                        {{ record.verified ? "Verified" : "Tampered" }}
+                      </span>
+                  </td>
+                  <td>
+                    <a
+                        v-if="record.solanaTx !== 'pending...'"
+                        :href="`https://explorer.solana.com/tx/${record.solanaTx}?cluster=devnet`"
+                        target="_blank"
+                        class="text-info text-decoration-none small"
+                    >
+                      {{ record.solanaTx.slice(0, 8) }}...
+                    </a>
+                    <span v-else class="text-white-50 small">Pending...</span>
+                  </td>
+                  <td class="text-end">
+                    <a
                         v-if="record.downloadUrl"
                         :href="record.downloadUrl"
                         target="_blank"
-                        class="btn btn-primary btn-sm"
-                      >
-                        Download
-                      </a>
-                      <button
-                        class="btn btn-primary btn-sm"
-                        :disabled="verifyingId === record.id"
-                        @click="verifyRecord(record)"
-                      >
-                        <span v-if="verifyingId === record.id">Verifying…</span>
-                        <span v-else>Verify</span>
-                      </button>
-                      <a
-                        v-if="record.solanaTx && record.solanaTx !== 'pending...'"
-                        :href="`https://explorer.solana.com/tx/${record.solanaTx}?cluster=devnet`"
-                        target="_blank"
-                        class="btn btn-primary btn-sm"
-                      >
-                        Solana TX
-                      </a>
-                    </div>
-                  </div>
-                  <div class="col-12 col-md-6 text-md-end">
-                    <div>
-                      <span
-                        class="badge px-3 py-2"
-                        :class="record.verified ? 'bg-success' : 'bg-secondary'"
-                      >
-                        {{ record.verified ? "Verified" : "Unverified" }}
-                      </span>
-                    </div>
-                    <p class="mt-2 text-muted small">
-                      Hash: {{ record.hash ? record.hash.slice(0, 16) + "…" : "—" }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                        class="btn btn-outline-light btn-sm"
+                    >
+                      Download
+                    </a>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
             </div>
 
-            <div v-else-if="activeNum === 1">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">Provider Consents</h4>
-                <button
-                  class="btn btn-primary btn-sm px-3"
-                  @click="showConsentForm = !showConsentForm"
-                >
-                  {{ showConsentForm ? "Close" : "New Consent" }}
-                </button>
-              </div>
-
-              <div v-if="showConsentForm" class="frosted-inner p-3 mb-3 rounded-3">
-                <div class="row g-2">
-                  <div class="col-12 col-md-6">
-                    <label class="form-label">Provider ID</label>
-                    <input
-                      v-model="newConsent.providerId"
-                      type="text"
-                      class="w-100 input-container"
-                      placeholder="Provider ObjectId"
-                    />
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label">Scopes (comma separated)</label>
-                    <input
-                      v-model="newConsent.scopes"
-                      type="text"
-                      class="w-100 input-container"
-                      placeholder="records.read, labs.read"
-                    />
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label">Purpose</label>
-                    <input
-                      v-model="newConsent.purpose"
-                      type="text"
-                      class="w-100 input-container"
-                      placeholder="care"
-                    />
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <label class="form-label">Expires At (optional)</label>
-                    <input
-                      v-model="newConsent.expiresAt"
-                      type="date"
-                      class="w-100 input-container"
-                    />
-                  </div>
-                </div>
-                <div class="text-end mt-3">
-                  <button
-                    class="btn btn-primary"
-                    :disabled="consentSubmitting"
-                    @click="handleCreateConsent"
-                  >
-                    <span v-if="consentSubmitting">Creating…</span>
-                    <span v-else>Create Consent</span>
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="loadingConsents" class="text-center text-muted py-4">
-                Loading consents…
-              </div>
-
-              <div v-else-if="!consents.length" class="text-center text-muted py-4">
-                No consents created yet.
-              </div>
-
-              <div
-                v-else
-                class="frosted-inner p-3 rounded-3"
-              >
-                <div
-                  v-for="consent in consents"
-                  :key="consent.consentId"
-                  class="border-bottom pb-3 mb-3"
-                >
-                  <div class="d-flex justify-content-between flex-wrap gap-2">
-                    <div>
-                      <h6 class="mb-1">Consent {{ consent.consentId }}</h6>
-                      <p class="mb-1 text-muted small">
-                        Provider: {{ consent.providerId }} · Scopes:
-                        {{ consent.scopes?.join(", ") || "—" }}
-                      </p>
-                      <p class="mb-1 text-muted small">
-                        Purpose: {{ consent.purpose || "care" }}
-                      </p>
-                      <p class="mb-1 text-muted small">
-                        Expires: {{ formatDate(consent.expiresAt) }}
-                      </p>
-                      <p class="mb-1 text-muted small">
-                        Status:
-                        <span v-if="consent.revokedAt">Revoked</span>
-                        <span v-else-if="consent.expiresAt && new Date(consent.expiresAt) < new Date()">Expired</span>
-                        <span v-else>Active</span>
-                      </p>
-                    </div>
-                    <div class="text-end">
-                      <a
-                        v-if="consent.solanaTx"
-                        :href="`https://explorer.solana.com/tx/${consent.solanaTx}?cluster=devnet`"
-                        target="_blank"
-                        class="btn btn-primary btn-sm mb-2"
-                      >
-                        Solana Receipt
-                      </a>
-                      <div>
-                        <button
-                          class="btn btn-primary btn-sm"
-                          :disabled="!!consent.revokedAt"
-                          @click="handleRevokeConsent(consent.consentId)"
-                        >
-                          Revoke
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else>
-              <div class="text-center text-muted py-4">
-                Activity logs coming soon.
-              </div>
+            <div v-else class="text-center text-white-50 py-5">
+              <p>No records found matching "{{ searchQuery }}".</p>
             </div>
           </div>
-        </Transition>
-      </div>
+
+          <!-- Footer -->
+          <div class="text-center mt-5 text-white-50 small">
+            © 2025 BridgeHealth · Secure · Verified · Decentralized
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.frosted-inner {
-  background: rgba(255, 255, 255, 0.05);
-  border: solid 3px rgba(127, 124, 124, 0.12);
+.frosted {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  color: #fff;
 }
 
-.form-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-  color: rgba(255, 255, 255, 0.75);
+.frosted-sub {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  color: #fff;
+}
+
+.table {
+  color: #fff;
+}
+.table thead tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.table tbody tr {
+  transition: background 0.2s ease;
+}
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.badge {
+  font-size: 0.75rem;
+  padding: 0.4em 0.6em;
+  border-radius: 0.5rem;
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+.btn-outline-light:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>
