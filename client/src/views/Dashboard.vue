@@ -9,7 +9,9 @@ export default {
       users: [],
       activeNum: 0,
       records: [],
+      filteredRecords: [],
       uploading: false,
+      searchQuery: "",
     };
   },
   async mounted() {
@@ -21,7 +23,6 @@ export default {
       if (!auth.success) {
         localStorage.setItem("bearer", "");
       } else {
-        // ✅ Fetch stored user records (with automatic integrity check)
         const result = await getFiles(this.$store.state.apiURI, bearer);
         if (result.records && Array.isArray(result.records)) {
           this.records = result.records.map((r) => ({
@@ -33,15 +34,26 @@ export default {
             uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
             downloadUrl: r.downloadUrl,
           }));
+          this.filteredRecords = this.records;
         } else {
           console.warn("No records found or invalid response:", result);
         }
       }
+    } else
+    {
+      this.$router.push("/login");
     }
   },
   methods: {
     setActive(num) {
       this.activeNum = num;
+    },
+
+    filterRecords() {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredRecords = this.records.filter((r) =>
+          r.fileName.toLowerCase().includes(query)
+      );
     },
 
     async handleFileSelect(event) {
@@ -66,6 +78,7 @@ export default {
         uploadedAt: new Date().toISOString().split("T")[0],
       };
       this.records.unshift(tempRecord);
+      this.filteredRecords = this.records;
 
       try {
         const recordType = "General Record";
@@ -81,18 +94,22 @@ export default {
 
         if (result.error) throw new Error(result.error);
 
-        // Replace placeholder with verified record
-        this.records[0] = {
-          _id: result._id,
-          fileName: result.fileName || file.name,
-          type: result.recordType || "Health Record",
-          verified: true,
-          solanaTx: result.solanaTx || "unknown",
-          uploadedAt: new Date().toISOString().split("T")[0],
-          downloadUrl: result.gcsFileUrl,
-        };
-
         console.log("✅ File uploaded successfully:", result);
+
+        // 🔄 Immediately fetch updated records (with confirmed Solana TX + verified hash)
+        const updated = await getFiles(this.$store.state.apiURI, bearer);
+        if (updated.records && Array.isArray(updated.records)) {
+          this.records = updated.records.map((r) => ({
+            _id: r._id,
+            fileName: r.fileName,
+            type: r.recordType || "Health Record",
+            verified: r.verified ?? false,
+            solanaTx: r.solanaTx,
+            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
+            downloadUrl: r.downloadUrl,
+          }));
+          this.filteredRecords = this.records;
+        }
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
@@ -100,7 +117,8 @@ export default {
       } finally {
         this.uploading = false;
       }
-    },
+    }
+
   },
 };
 </script>
@@ -126,8 +144,14 @@ export default {
 
           <!-- Records Section -->
           <div class="p-3 rounded-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h5 class="text-uppercase text-white-50">Health Records</h5>
+            <div
+                class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 gap-3"
+            >
+              <h5 class="text-uppercase text-white-50 mb-0">
+                Health Records
+              </h5>
+
+
 
               <!-- Hidden file input -->
               <input
@@ -147,9 +171,18 @@ export default {
               </button>
             </div>
 
+            <!-- Search bar -->
+            <input
+                type="text"
+                class="form-control frosted-sub text-white mb-3"
+                placeholder="Search records..."
+                v-model="searchQuery"
+                @input="filterRecords"
+            />
+
             <div
-                v-if="records.length"
-                v-for="(record, i) in records"
+                v-if="filteredRecords.length"
+                v-for="(record, i) in filteredRecords"
                 :key="i"
                 class="record-item p-3 mb-3 rounded-3 frosted-inner"
             >
@@ -180,7 +213,7 @@ export default {
                   >
                     {{ record.solanaTx.slice(0, 8) }}...
                   </a>
-                  <span v-else class="text-white-50 small">pending...</span>
+                  <span v-else class="text-white-50 small"></span>
 
                   <!-- Integrity Badge -->
                   <div
@@ -194,7 +227,7 @@ export default {
             </div>
 
             <div v-else class="text-center text-white-50 py-5">
-              <p>No records found. Upload your first health record.</p>
+              <p>No records found matching "{{ searchQuery }}".</p>
             </div>
           </div>
 
@@ -217,6 +250,13 @@ export default {
   color: #fff;
 }
 
+.frosted-sub {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+}
+
 .frosted-inner {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -226,6 +266,10 @@ export default {
 .frosted-inner:hover {
   background: rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .btn-outline-light {

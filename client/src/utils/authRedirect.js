@@ -11,7 +11,7 @@ export default async (to, from, next) => {
     }
     return next();
   } else {
-    if (to.fullPath == "/dashboard") {
+    if (to.fullPath === "/dashboard") {
       store.dispatch("updateNotification", {
         error: "Not Authenticated.",
       });
