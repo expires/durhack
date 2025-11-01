@@ -5,6 +5,7 @@ import Index from "../views/Index.vue";
 import Login from "../views/Login.vue";
 import Signup from "../views/Signup.vue";
 import Reset from "../views/Reset.vue";
+import Dashboard from "../views/Dashboard.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,12 @@ const router = createRouter({
       component: Reset,
       beforeEnter: authRedirect,
     },
+    {
+      path: "/dashboard",
+      name: "dashboard",
+      component: Dashboard,
+      beforeEnter: authRedirect,
+    }
   ],
 });
 

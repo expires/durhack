@@ -13,13 +13,6 @@ export default {
   mounted() {},
 
   methods: {
-    emitInputValueDebounced: function () {
-      filterInput(this.inputValue);
-      clearTimeout(this.timeoutId);
-      this.timeoutId = setTimeout(() => {
-        this.$store.dispatch("updateSearch", this.inputValue);
-      }, 100);
-    },
     async logout() {
       this.$router.push("/login");
       localStorage.setItem("bearer", "");
@@ -49,20 +42,15 @@ export default {
       <div class="custom-col-2 p-0">
         <div class="row m-0 h-100 gx-2">
           <div class="col-6">
-            <div class="input-container h-100 rounded-3">
-              <i class="uil uil-search"></i>
-              <input
-                type="text"
-                class="w-100 h-100 pe-3"
-                placeholder="Search..."
-                v-model="inputValue"
-                @input="emitInputValueDebounced"
-              />
+            <div class="h-100 rounded-3">
             </div>
           </div>
           <div class="col-3">
             <RouterLink v-if="bearer.length < 1" to="/login">
               <button class="btn btn-primary w-100 h-100">Login</button>
+            </RouterLink>
+            <RouterLink v-else-if="$route.path === '/dashboard'" to="/">
+              <button class="btn btn-primary w-100 h-100">Home</button>
             </RouterLink>
             <RouterLink v-else to="/dashboard">
               <button class="btn btn-primary w-100 h-100">Dashboard</button>
