@@ -1,5 +1,6 @@
 <script>
 import { getAuth, postUpload, getFiles } from "../services/index";
+import { createConsent, getConsents, revokeConsent } from "../services/consents";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
@@ -12,43 +13,79 @@ export default {
       filteredRecords: [],
       uploading: false,
       searchQuery: "",
+      consents: [],
+      loadingConsents: false,
+      showConsentForm: false,
+      consentSubmitting: false,
+      newConsent: {
+        providerId: "",
+        scopes: "records.read",
+        purpose: "care",
+        expiresAt: "",
+      },
     };
   },
   async mounted() {
     this.$store.dispatch("updateUsers", this.users);
     const bearer = localStorage.getItem("bearer");
 
-    if (bearer?.length) {
-      const auth = await getAuth(this.$store.state.apiURI, bearer);
-      if (!auth.success) {
-        localStorage.setItem("bearer", "");
-      } else {
-        const result = await getFiles(this.$store.state.apiURI, bearer);
-        if (result.records && Array.isArray(result.records)) {
-          this.records = result.records.map((r) => ({
-            _id: r._id,
-            fileName: r.fileName,
-            type: r.recordType || "Health Record",
-            verified: r.verified ?? false,
-            solanaTx: r.solanaTx,
-            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
-            downloadUrl: r.downloadUrl,
-          }));
-          this.filteredRecords = this.records;
-        }
-      }
-    } else {
+    if (!(bearer?.length)) {
       this.$router.push("/login");
+      return;
     }
+
+    const auth = await getAuth(this.$store.state.apiURI, bearer);
+    if (!auth.success) {
+      localStorage.setItem("bearer", "");
+      this.$router.push("/login");
+      return;
+    }
+
+    await this.fetchRecords();
+    await this.fetchConsents();
   },
   methods: {
     filterRecords() {
       const query = this.searchQuery.toLowerCase();
       this.filteredRecords = this.records.filter((r) =>
-          r.fileName.toLowerCase().includes(query)
+        r.fileName.toLowerCase().includes(query)
       );
     },
+    async fetchRecords() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
 
+      const result = await getFiles(this.$store.state.apiURI, bearer);
+      if (result.records && Array.isArray(result.records)) {
+        this.records = result.records.map((r) => ({
+          _id: r._id,
+          fileName: r.fileName,
+          type: r.recordType || "Health Record",
+          verified: r.verified ?? false,
+          solanaTx: r.solanaTx,
+          uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
+          downloadUrl: r.downloadUrl,
+        }));
+        this.filteredRecords = this.records;
+      }
+    },
+    async fetchConsents() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
+      this.loadingConsents = true;
+      try {
+        const result = await getConsents(this.$store.state.apiURI, bearer);
+        this.consents = (result.consents || []).map((consent) => ({
+          ...consent,
+          expiresAt: consent.expiresAt ? new Date(consent.expiresAt).toISOString().split("T")[0] : null,
+          revokedAt: consent.revokedAt ? new Date(consent.revokedAt).toISOString().split("T")[0] : null,
+        }));
+      } catch (err) {
+        console.error("Failed to fetch consents:", err);
+      } finally {
+        this.loadingConsents = false;
+      }
+    },
     async handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -61,6 +98,7 @@ export default {
 
       this.uploading = true;
       const tempRecord = {
+        _id: `temp-${Date.now()}`,
         fileName: file.name,
         type: "Uploaded File",
         verified: false,
@@ -75,34 +113,102 @@ export default {
         const timestamp = new Date().toISOString();
 
         const result = await postUpload(
-            this.$store.state.apiURI,
-            bearer,
-            file,
-            recordType,
-            timestamp
+          this.$store.state.apiURI,
+          bearer,
+          file,
+          recordType,
+          timestamp
         );
         if (result.error) throw new Error(result.error);
 
-        const updated = await getFiles(this.$store.state.apiURI, bearer);
-        if (updated.records && Array.isArray(updated.records)) {
-          this.records = updated.records.map((r) => ({
-            _id: r._id,
-            fileName: r.fileName,
-            type: r.recordType || "Health Record",
-            verified: r.verified ?? false,
-            solanaTx: r.solanaTx,
-            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
-            downloadUrl: r.downloadUrl,
-          }));
-          this.filteredRecords = this.records;
-        }
+        await this.fetchRecords();
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
-        this.records.shift();
+        this.records = this.records.filter((r) => r._id !== tempRecord._id);
+        this.filteredRecords = this.records;
       } finally {
         this.uploading = false;
       }
+    },
+    async handleCreateConsent() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return alert("Please log in first.");
+
+      if (!this.newConsent.providerId.trim()) {
+        return alert("Provider ID is required.");
+      }
+
+      this.consentSubmitting = true;
+      try {
+        const payload = {
+          providerId: this.newConsent.providerId.trim(),
+          scopes: this.newConsent.scopes
+            .split(",")
+            .map((scope) => scope.trim())
+            .filter(Boolean),
+          purpose: this.newConsent.purpose.trim() || "care",
+          expiresAt: this.newConsent.expiresAt || null,
+        };
+
+        const result = await createConsent(
+          this.$store.state.apiURI,
+          bearer,
+          payload
+        );
+
+        if (result.success) {
+          this.showConsentForm = false;
+          this.newConsent = {
+            providerId: "",
+            scopes: "records.read",
+            purpose: "care",
+            expiresAt: "",
+          };
+          await this.fetchConsents();
+        } else {
+          alert(result.error || "Failed to create consent");
+        }
+      } catch (err) {
+        console.error("Error creating consent:", err);
+        alert("Failed to create consent");
+      } finally {
+        this.consentSubmitting = false;
+      }
+    },
+    async handleRevokeConsent(consentId) {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return alert("Please log in first.");
+
+      try {
+        const result = await revokeConsent(
+          this.$store.state.apiURI,
+          bearer,
+          consentId
+        );
+        if (result.success) {
+          await this.fetchConsents();
+        } else {
+          alert(result.error || "Failed to revoke consent");
+        }
+      } catch (err) {
+        console.error("Error revoking consent:", err);
+      }
+    },
+    consentStatus(consent) {
+      if (consent.revokedAt) {
+        return { label: "Revoked", variant: "bg-danger" };
+      }
+      if (consent.expiresAt && new Date(consent.expiresAt) < new Date()) {
+        return { label: "Expired", variant: "bg-warning" };
+      }
+      return { label: "Active", variant: "bg-success" };
+    },
+    consentStatusLabel(consent) {
+      return this.consentStatus(consent).label;
+    },
+    consentStatusVariant(consent) {
+      return this.consentStatus(consent).variant;
     },
   },
 };
@@ -222,6 +328,144 @@ export default {
             </div>
           </div>
 
+          <!-- Consent Management -->
+          <div class="mt-5">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+              <h5 class="text-uppercase text-white-50 mb-0">Provider Consents</h5>
+              <button
+                class="btn btn-primary btn-sm px-3"
+                @click="showConsentForm = !showConsentForm"
+              >
+                {{ showConsentForm ? "Close" : "New Consent" }}
+              </button>
+            </div>
+
+            <div v-if="showConsentForm" class="frosted-sub p-3 rounded-3 mb-3">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Provider ID</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.providerId"
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      placeholder="Provider ObjectId"
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Scopes (comma separated)</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.scopes"
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      placeholder="records.read, labs.read"
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Purpose</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.purpose"
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      placeholder="care"
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Expires At (optional)</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.expiresAt"
+                      type="date"
+                      class="w-100 h-100 pe-3"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="text-end mt-3">
+                <button
+                  class="btn btn-primary btn-sm px-4"
+                  :disabled="consentSubmitting"
+                  @click="handleCreateConsent"
+                >
+                  <span v-if="consentSubmitting">Creating…</span>
+                  <span v-else>Create Consent</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="loadingConsents" class="text-center text-white-50 py-4">
+              Loading consents…
+            </div>
+            <div v-else-if="!consents.length" class="text-center text-white-50 py-4">
+              No consents created yet.
+            </div>
+            <div v-else class="table-responsive">
+              <table class="table table-borderless align-middle text-white">
+                <thead>
+                  <tr class="text-uppercase text-white-50 small">
+                    <th scope="col">Consent ID</th>
+                    <th scope="col">Provider</th>
+                    <th scope="col">Scopes</th>
+                    <th scope="col">Purpose</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Receipt</th>
+                    <th scope="col" class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="consent in consents"
+                    :key="consent.consentId"
+                    class="frosted-inner"
+                  >
+                    <td class="fw-semibold">{{ consent.consentId }}</td>
+                    <td class="text-white-50">{{ consent.providerId }}</td>
+                    <td class="text-white-50">
+                      {{ consent.scopes?.join(", ") || "—" }}
+                    </td>
+                    <td class="text-white-50">{{ consent.purpose || "care" }}</td>
+                    <td>
+                      <span
+                        class="badge"
+                        :class="consentStatusVariant(consent)"
+                      >
+                        {{ consentStatusLabel(consent) }}
+                      </span>
+                      <div class="text-white-50 small mt-1">
+                        Expires: {{ consent.expiresAt || "—" }}
+                      </div>
+                    </td>
+                    <td>
+                      <a
+                        v-if="consent.solanaTx"
+                        :href="`https://explorer.solana.com/tx/${consent.solanaTx}?cluster=devnet`"
+                        target="_blank"
+                        class="text-info text-decoration-none small"
+                      >
+                        View TX
+                      </a>
+                      <span v-else class="text-white-50 small">—</span>
+                    </td>
+                    <td class="text-end">
+                      <button
+                        class="btn btn-outline-light btn-sm"
+                        :disabled="!!consent.revokedAt"
+                        @click="handleRevokeConsent(consent.consentId)"
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- Footer -->
           <div class="text-center mt-5 text-white-50 small">
             © 2025 BridgeHealth · Secure · Verified · Decentralized
@@ -277,5 +521,11 @@ export default {
 
 input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
 }
 </style>
