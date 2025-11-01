@@ -7,6 +7,7 @@ import deleteLogout from "./deleteLogout";
 
 import postCode from "./postCode";
 import putReset from "./putReset";
+import postUpload from "./postUpload";
 
 export {
   postSignup,
@@ -15,4 +16,5 @@ export {
   deleteLogout,
   postCode,
   putReset,
+  postUpload,
 };

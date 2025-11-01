@@ -1,5 +1,5 @@
 <script>
-import { getAuth } from "../services/index";
+import { getAuth, postUpload } from "../services/index";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
@@ -8,22 +8,8 @@ export default {
     return {
       users: [],
       activeNum: 0,
-      records: [
-        {
-          fileName: "Blood Test – Oct 2025",
-          type: "Lab Report",
-          verified: true,
-          solanaTx: "4mZ8Dk9GxqR...",
-          uploadedAt: "2025-11-01",
-        },
-        {
-          fileName: "X-Ray – Sept 2025",
-          type: "Imaging",
-          verified: true,
-          solanaTx: "3kTTNn5pA2F...",
-          uploadedAt: "2025-09-15",
-        },
-      ],
+      records: [],
+      uploading: false,
     };
   },
   async mounted() {
@@ -38,43 +24,66 @@ export default {
     setActive(num) {
       this.activeNum = num;
     },
-    handleFileSelect(event) {
+
+    async handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
 
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) {
+        alert("You must be logged in to upload files.");
+        return;
+      }
+
+      this.uploading = true;
       console.log("📄 Selected file:", file.name);
-      const reader = new FileReader();
 
-      reader.onload = async (e) => {
-        const base64 = e.target.result.split(",")[1];
-        console.log("🧩 Encoded data (base64):", base64.slice(0, 60) + "...");
-        await this.mockUpload(file.name, base64);
-      };
-
-      reader.readAsDataURL(file);
-    },
-    async mockUpload(fileName, ciphertext) {
-      console.log("📤 Uploading file:", fileName);
-
-      // Simulate upload delay
-      this.records.unshift({
-        fileName,
+      // Add a temporary pending record while uploading
+      const tempRecord = {
+        fileName: file.name,
         type: "Uploaded File",
         verified: false,
         solanaTx: "pending...",
         uploadedAt: new Date().toISOString().split("T")[0],
-      });
+      };
+      this.records.unshift(tempRecord);
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        const recordType = "General Record";
+        const timestamp = new Date().toISOString();
 
-      console.log("✅ File uploaded successfully!");
-      // Update status to verified after delay
-      this.records[0].verified = true;
-      this.records[0].solanaTx = "4mZ8Dk9GxqR7Demo...";
+        const result = await postUpload(
+            this.$store.state.apiURI,
+            bearer,
+            file,
+            recordType,
+            timestamp
+        );
+
+        if (result.error) throw new Error(result.error);
+
+        // Replace the temp record with the actual one from backend
+        this.records[0] = {
+          fileName: result.fileName || file.name,
+          type: result.recordType || "Health Record",
+          verified: true,
+          solanaTx: result.solanaTx || "unknown",
+          uploadedAt: new Date().toISOString().split("T")[0],
+        };
+
+        console.log("✅ File uploaded successfully:", result);
+      } catch (err) {
+        console.error("❌ Upload failed:", err);
+        alert("Upload failed: " + err.message);
+        this.records.shift(); // remove temp record
+      } finally {
+        this.uploading = false;
+      }
     },
   },
 };
 </script>
+
 
 <template>
   <div class="container py-5 px-sm-5 text-white">

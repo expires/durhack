@@ -4,7 +4,6 @@ const jwt = require("jsonwebtoken");
 module.exports = async (req, res) => {
   try {
     const token = req.token;
-    // TOKEN LOGIC GOES HERE
     return res.status(200).send(
       JSON.stringify({
         success: "You have successfully been logged out.",
