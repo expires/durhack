@@ -1,5 +1,5 @@
 <script>
-import { getAuth, postUpload, getFiles, getVerify } from "../services/index";
+import { getAuth, postUpload, getFiles } from "../services/index";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
@@ -10,7 +10,6 @@ export default {
       activeNum: 0,
       records: [],
       uploading: false,
-      verifyingId: null,
     };
   },
   async mounted() {
@@ -22,14 +21,14 @@ export default {
       if (!auth.success) {
         localStorage.setItem("bearer", "");
       } else {
-        // ✅ Fetch stored user records
+        // ✅ Fetch stored user records (with automatic integrity check)
         const result = await getFiles(this.$store.state.apiURI, bearer);
         if (result.records && Array.isArray(result.records)) {
           this.records = result.records.map((r) => ({
             _id: r._id,
             fileName: r.fileName,
             type: r.recordType || "Health Record",
-            verified: r.verified ?? true,
+            verified: r.verified ?? false,
             solanaTx: r.solanaTx,
             uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
             downloadUrl: r.downloadUrl,
@@ -58,7 +57,7 @@ export default {
       this.uploading = true;
       console.log("📄 Selected file:", file.name);
 
-      // Add a temporary pending record while uploading
+      // Temporary placeholder while uploading
       const tempRecord = {
         fileName: file.name,
         type: "Uploaded File",
@@ -82,7 +81,7 @@ export default {
 
         if (result.error) throw new Error(result.error);
 
-        // Replace temp record with the actual record from backend
+        // Replace placeholder with verified record
         this.records[0] = {
           _id: result._id,
           fileName: result.fileName || file.name,
@@ -97,43 +96,9 @@ export default {
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
-        this.records.shift(); // remove temp record
+        this.records.shift(); // remove placeholder
       } finally {
         this.uploading = false;
-      }
-    },
-
-    // 🧩 Verify a specific record on demand
-    async verifyRecord(record) {
-      const bearer = localStorage.getItem("bearer");
-      if (!bearer) {
-        alert("You must be logged in to verify records.");
-        return;
-      }
-
-      this.verifyingId = record._id;
-      try {
-        const result = await getVerify(
-            this.$store.state.apiURI,
-            bearer,
-            record._id
-        );
-
-        if (result.error) throw new Error(result.error);
-
-        record.verified = result.verified;
-        if (result.verified) {
-          alert("✅ Verified: file matches Solana and GCS");
-        } else {
-          alert("⚠️ Tampered or mismatched file!");
-        }
-
-        console.log("🔍 Verification result:", result.details);
-      } catch (err) {
-        console.error("❌ Verification failed:", err);
-        alert("Verification failed: " + err.message);
-      } finally {
-        this.verifyingId = null;
       }
     },
   },
@@ -161,9 +126,7 @@ export default {
 
           <!-- Records Section -->
           <div class="p-3 rounded-3">
-            <div
-                class="d-flex justify-content-between align-items-center mb-3"
-            >
+            <div class="d-flex justify-content-between align-items-center mb-3">
               <h5 class="text-uppercase text-white-50">Health Records</h5>
 
               <!-- Hidden file input -->
@@ -219,22 +182,13 @@ export default {
                   </a>
                   <span v-else class="text-white-50 small">pending...</span>
 
-                  <!-- Verification badge -->
+                  <!-- Integrity Badge -->
                   <div
                       class="badge ms-2"
                       :class="record.verified ? 'bg-success' : 'bg-danger'"
                   >
                     {{ record.verified ? "Verified" : "Tampered" }}
                   </div>
-
-                  <!-- Verify button -->
-                  <button
-                      class="btn btn-outline-light btn-sm ms-3"
-                      :disabled="verifyingId === record._id"
-                      @click="verifyRecord(record)"
-                  >
-                    {{ verifyingId === record._id ? "Verifying..." : "Verify" }}
-                  </button>
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import Record from "../../models/record.js";
 import User from "../../models/user.js";
 import { Storage } from "@google-cloud/storage";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -35,8 +36,8 @@ export const getFiles = async (req, res) => {
         // 🧾 Fetch user's records
         const records = await Record.find({ userId }).sort({ createdAt: -1 });
 
-        // 🔗 Optionally generate signed download URLs
-        const recordsWithUrls = await Promise.all(
+        // 🔍 Generate signed download URLs + verify integrity
+        const recordsWithVerification = await Promise.all(
             records.map(async (r) => {
                 const fileName = r.gcsFileUrl.split("/").pop();
                 const file = bucket.file(fileName);
@@ -48,14 +49,31 @@ export const getFiles = async (req, res) => {
                     expires: Date.now() + 60 * 60 * 1000,
                 });
 
+                let verified = false;
+                try {
+                    // Download the file from GCS
+                    const [fileBuffer] = await file.download();
+
+                    // Recalculate hash
+                    const newHash = crypto
+                        .createHash("sha256")
+                        .update(fileBuffer)
+                        .digest("hex");
+
+                    // Compare with stored hash
+                    verified = newHash === r.hash;
+                } catch (err) {
+                    console.warn(`⚠️ Verification failed for ${r.fileName}:`, err.message);
+                }
+
                 return {
-                    id: r._id,
+                    _id: r._id,
                     fileName: r.fileName,
                     recordType: r.recordType,
                     hash: r.hash,
                     solanaTx: r.solanaTx,
                     uploadedAt: r.timestamp,
-                    verified: true,
+                    verified,
                     downloadUrl: url,
                 };
             })
@@ -64,7 +82,7 @@ export const getFiles = async (req, res) => {
         res.status(200).json({
             message: "Records retrieved successfully",
             user: user.username,
-            records: recordsWithUrls,
+            records: recordsWithVerification,
         });
     } catch (error) {
         console.error("❌ Get User Records Error:", error);
