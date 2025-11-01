@@ -14,7 +14,7 @@ export default async (URI, bearer, file, recordType, timestamp) => {
             body: formData,
         };
 
-        const response = await fetch(URI + "upload", options);
+        const response = await fetch(URI + "files/upload", options);
         return await response.json();
     } catch (error) {
         console.error("❌ Upload Service Error:", error);

@@ -8,6 +8,8 @@ import deleteLogout from "./deleteLogout";
 import postCode from "./postCode";
 import putReset from "./putReset";
 import postUpload from "./postUpload";
+import getFiles from "./getFiles";
+import getVerify from "./getVerify";
 
 export {
   postSignup,
@@ -17,4 +19,6 @@ export {
   postCode,
   putReset,
   postUpload,
+  getFiles,
+  getVerify,
 };
