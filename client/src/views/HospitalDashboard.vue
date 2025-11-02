@@ -144,15 +144,12 @@ export default {
         <div class="rounded-4 frosted p-4 shadow-lg">
           <div class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <h2 class="fw-bold mb-0">Provider Dashboard</h2>
-            <b-button size="sm" variant="outline-light" @click="fetchDashboard" :disabled="loading">
+            <button class="btn-primary rounded-3" size="sm" variant="outline-light" @click="fetchDashboard" :disabled="loading">
               Refresh
-            </b-button>
+            </button>
           </div>
           <div class="mb-4">
             <div class="input-group search-bar">
-              <span class="input-group-text bg-transparent border-light text-white-50">
-                <i class="uil uil-search"></i>
-              </span>
               <input
                 type="text"
                 class="form-control frosted-sub text-white mb-4"
