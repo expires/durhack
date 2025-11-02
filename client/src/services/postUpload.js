@@ -1,9 +1,12 @@
-export default async (URI, bearer, file, recordType, timestamp) => {
+export default async (URI, bearer, file, recordType, timestamp, patientId) => {
     try {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("recordType", recordType);
         formData.append("timestamp", timestamp);
+        if (patientId) {
+            formData.append("patientId", patientId);
+        }
 
         const headers = new Headers();
         headers.append("Authorization", "Bearer " + bearer);
