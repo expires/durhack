@@ -24,12 +24,6 @@ app.use(express.urlencoded({ extended: true }));
 app.set("json spaces", 2);
 app.use(setJson);
 
-// THROTTLE TEST
-// app.use((req, res, next) => {
-//   setTimeout(() => {
-//     next();
-//   }, 2000);
-// });
 
 app.use("/v1", require("./config/api"));
 module.exports = app;
