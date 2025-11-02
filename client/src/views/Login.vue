@@ -13,16 +13,6 @@ export default {
       stayLoggedIn: false,
       buttonActive: true,
       showPassword: false,
-      role: "patient",
-      roles: [
-        { label: "Patient", value: "patient" },
-        { label: "Hospital", value: "hospital" },
-        { label: "Doctor", value: "doctor" },
-        { label: "Researcher", value: "researcher" },
-        { label: "Auditor / Compliance", value: "auditor" },
-        { label: "Insurance / Billing", value: "insurance" },
-        { label: "Emergency Responder", value: "emergency" },
-      ],
     };
   },
 
@@ -76,7 +66,6 @@ export default {
         username: this.username,
         password: this.password,
         stayLoggedIn: this.stayLoggedIn,
-        role: this.role,
       };
       let result = await postLogin(this.$store.state.apiURI, body);
       this.buttonActive = true;
@@ -150,23 +139,6 @@ export default {
           </div>
         </Transition>
       </div>
-      <div class="input-container h-100 rounded-3 my-2">
-        <i class="uil uil-building" style="color: white"></i>
-        <select
-          class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
-          v-model="role"
-        >
-          <option
-            v-for="option in roles"
-            :key="option.value"
-            :value="option.value"
-            class="text-dark"
-          >
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
-      <div class="row"></div>
       <div class="row">
         <div class="col-6 d-flex mt-2 align-items-center">
           <label class="switch text-start me-2">

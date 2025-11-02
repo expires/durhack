@@ -10,7 +10,19 @@ export default {
       patients: [],
       loading: false,
       error: null,
+      searchQuery: "",
     };
+  },
+  computed: {
+    filteredPatients() {
+      const query = this.searchQuery.trim().toLowerCase();
+      if (!query) {
+        return this.patients;
+      }
+      return this.patients.filter((patient) =>
+        (patient.name || "").toLowerCase().includes(query)
+      );
+    },
   },
   async mounted() {
     await this.bootstrap();
@@ -79,11 +91,25 @@ export default {
     <div class="rounded-3 mt-2">
       <Transition name="fade" mode="out-in">
         <div class="rounded-4 frosted p-4 shadow-lg">
-          <div class="mb-5 d-flex justify-content-between align-items-center">
+          <div class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
             <h2 class="fw-bold mb-0">Provider Dashboard</h2>
             <b-button size="sm" variant="outline-light" @click="fetchDashboard" :disabled="loading">
               Refresh
             </b-button>
+          </div>
+          <div class="mb-4">
+            <div class="input-group search-bar">
+              <span class="input-group-text bg-transparent border-light text-white-50">
+                <i class="uil uil-search"></i>
+              </span>
+              
+              <input
+                type="text"
+                class="form-control bg-transparent border-light text-white"
+                placeholder="Search patients by name..."
+                v-model="searchQuery"
+              />
+            </div>
           </div>
 
           <div v-if="loading" class="text-center text-white-50 py-5">
@@ -98,9 +124,12 @@ export default {
             <p v-if="!patients.length" class="text-white-50">
               No patient folders available yet.
             </p>
+            <p v-else-if="!filteredPatients.length" class="text-white-50">
+              No patients match your search.
+            </p>
 
             <div
-              v-for="patient in patients"
+              v-for="patient in filteredPatients"
               :key="patient._id"
               class="mb-3 patient-card"
             >
@@ -196,5 +225,13 @@ export default {
 
 .record-item:last-child {
   border-bottom: none;
+}
+
+.search-bar .form-control {
+  color: #fff;
+}
+
+.search-bar .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.55);
 }
 </style>
