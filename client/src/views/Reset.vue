@@ -23,7 +23,8 @@ export default {
       handler(notif) {
         if (notif.success === "Already logged in.") {
           this.$store.dispatch("updateNotification", { success: "" });
-          this.$router.push("/");
+          const role = localStorage.getItem("role");
+          this.$router.push(role === "hospital" ? "/hospital" : "/dashboard");
         }
       },
     },

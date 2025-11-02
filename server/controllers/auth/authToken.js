@@ -3,10 +3,16 @@ const jwt = require("jsonwebtoken");
 
 module.exports = async (req, res) => {
   try {
-    if (req.token) {
+    if (req.user) {
       return res.status(200).send(
         JSON.stringify({
           success: "Authenticated",
+          user: {
+            id: req.user._id,
+            email: req.user.email,
+            username: req.user.username,
+            role: req.user.role,
+          },
         })
       );
     }

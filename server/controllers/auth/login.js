@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 
 module.exports = async (req, res) => {
   try {
-    const { username, password, stayLoggedIn } = req.body;
+    const { username, password, stayLoggedIn, role } = req.body;
     if (!(username && password)) {
       return res
         .status(400)
@@ -21,6 +21,12 @@ module.exports = async (req, res) => {
         .send(JSON.stringify({ error: "Invalid username or password." }));
     }
 
+    if (role && existsUser.role !== role) {
+      return res
+        .status(403)
+        .send(JSON.stringify({ error: "User role mismatch." }));
+    }
+
     let isPassTrue = await bcrypt.compare(password, existsUser.password);
     if (isPassTrue) {
       let expiry = "15m";
@@ -28,13 +34,23 @@ module.exports = async (req, res) => {
         expiry = "30d";
       }
       let token;
-      token = jwt.sign({ user_id: existsUser._id }, process.env.TOKEN, {
-        expiresIn: expiry,
-      });
+      token = jwt.sign(
+        { user_id: existsUser._id, role: existsUser.role },
+        process.env.TOKEN,
+        {
+          expiresIn: expiry,
+        }
+      );
       return res.status(200).send(
         JSON.stringify({
           success: { success: "Successfully logged in." },
           token: token,
+          user: {
+            id: existsUser._id,
+            email: existsUser.email,
+            username: existsUser.username,
+            role: existsUser.role,
+          },
         })
       );
     } else {

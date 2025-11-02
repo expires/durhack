@@ -1,25 +1,35 @@
 const jwt = require("jsonwebtoken");
-const user = require("../models/user");
+const User = require("../models/user");
 
 const auth = async (req, res, next) => {
-  const token =
-    req.headers["authorization"] && req.headers["authorization"].split(" ")[1];
+  const authHeader = req.headers["authorization"] || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  if (!token) {
+    return res.status(401).json({ error: "Not Authenticated." });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.TOKEN);
-    // const getUser = await user.findOne({ token: token });
-    // if (!getUser) {
-    //   return res
-    //     .status(403)
-    //     .send(JSON.stringify({ error: "Not Authenticated." }));
-    // }
-    req.token = decoded;
+    const userId = decoded.user_id || decoded._id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not Authenticated." });
+    }
+
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    req.token = token;
+    req.user = currentUser;
+    return next();
   } catch (err) {
-    return res
-      .status(403)
-      .send(JSON.stringify({ error: "Not Authenticated." }));
+    console.error("Auth error:", err);
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
-  return next();
 };
 
 module.exports = auth;

@@ -1,54 +1,118 @@
 <script>
 import { getAuth, postUpload, getFiles } from "../services/index";
+import { createConsent, getConsents, revokeConsent } from "../services/consents";
+import { getHospitals } from "../services/hospital";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
   components: { Nav },
   data() {
     return {
-      users: [],
-      activeNum: 0,
       records: [],
       filteredRecords: [],
       uploading: false,
       searchQuery: "",
+      consents: [],
+      loadingConsents: false,
+      showConsentForm: false,
+      consentSubmitting: false,
+      newConsent: {
+        hospitalId: "",
+        scopes: "records.read",
+        purpose: "care",
+        expiresAt: "",
+      },
+      selectedRecordIds: [],
+      hospitals: [],
     };
   },
+  computed: {
+    userRole() {
+      return this.$store.state.user?.role || localStorage.getItem("role");
+    },
+    allRecordsSelected() {
+      return (
+        this.records.length > 0 &&
+        this.selectedRecordIds.length === this.records.length
+      );
+    },
+  },
   async mounted() {
-    this.$store.dispatch("updateUsers", this.users);
-    const bearer = localStorage.getItem("bearer");
-
-    if (bearer?.length) {
-      const auth = await getAuth(this.$store.state.apiURI, bearer);
-      if (!auth.success) {
-        localStorage.setItem("bearer", "");
-      } else {
-        const result = await getFiles(this.$store.state.apiURI, bearer);
-        if (result.records && Array.isArray(result.records)) {
-          this.records = result.records.map((r) => ({
-            _id: r._id,
-            fileName: r.fileName,
-            type: r.recordType || "Health Record",
-            verified: r.verified ?? false,
-            solanaTx: r.solanaTx,
-            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
-            downloadUrl: r.downloadUrl,
-          }));
-          this.filteredRecords = this.records;
-        }
-      }
-    } else {
-      this.$router.push("/login");
-    }
+    await this.bootstrap();
   },
   methods: {
+    async bootstrap() {
+      const bearer = localStorage.getItem("bearer");
+      if (!(bearer?.length)) {
+        this.$router.push("/login");
+        return;
+      }
+
+      const auth = await getAuth(this.$store.state.apiURI, bearer);
+      if (auth?.user) {
+        this.$store.dispatch("updateUser", auth.user);
+        localStorage.setItem("role", auth.user.role);
+      }
+
+      if (!auth?.success || (auth.user && auth.user.role !== "patient")) {
+        this.$router.push("/hospital");
+        return;
+      }
+
+      await this.fetchRecords();
+      await this.fetchConsents();
+      await this.fetchHospitals();
+    },
     filterRecords() {
       const query = this.searchQuery.toLowerCase();
       this.filteredRecords = this.records.filter((r) =>
-          r.fileName.toLowerCase().includes(query)
+        r.fileName.toLowerCase().includes(query)
       );
     },
+    async fetchRecords() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
 
+      const result = await getFiles(this.$store.state.apiURI, bearer);
+      if (result.records && Array.isArray(result.records)) {
+        this.records = result.records.map((r) => ({
+          _id: r._id,
+          fileName: r.fileName,
+          type: r.recordType || "Health Record",
+          verified: r.verified ?? false,
+          solanaTx: r.solanaTx,
+          uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
+          downloadUrl: r.downloadUrl,
+        }));
+        this.filteredRecords = [...this.records];
+        this.selectedRecordIds = this.selectedRecordIds.filter((id) =>
+          this.records.some((record) => record._id === id)
+        );
+      }
+    },
+    async fetchConsents() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
+      this.loadingConsents = true;
+      try {
+        const result = await getConsents(this.$store.state.apiURI, bearer);
+        this.consents = result.consents || [];
+      } catch (err) {
+        console.error("Failed to fetch consents:", err);
+      } finally {
+        this.loadingConsents = false;
+      }
+    },
+    async fetchHospitals() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
+      try {
+        const result = await getHospitals(this.$store.state.apiURI, bearer);
+        this.hospitals = result.hospitals || [];
+      } catch (err) {
+        console.error("Failed to fetch hospitals:", err);
+      }
+    },
     async handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -61,6 +125,7 @@ export default {
 
       this.uploading = true;
       const tempRecord = {
+        _id: `temp-${Date.now()}`,
         fileName: file.name,
         type: "Uploaded File",
         verified: false,
@@ -68,41 +133,129 @@ export default {
         uploadedAt: new Date().toISOString().split("T")[0],
       };
       this.records.unshift(tempRecord);
-      this.filteredRecords = this.records;
+      this.filteredRecords = [...this.records];
 
       try {
         const recordType = "General Record";
         const timestamp = new Date().toISOString();
 
         const result = await postUpload(
-            this.$store.state.apiURI,
-            bearer,
-            file,
-            recordType,
-            timestamp
+          this.$store.state.apiURI,
+          bearer,
+          file,
+          recordType,
+          timestamp
         );
         if (result.error) throw new Error(result.error);
 
-        const updated = await getFiles(this.$store.state.apiURI, bearer);
-        if (updated.records && Array.isArray(updated.records)) {
-          this.records = updated.records.map((r) => ({
-            _id: r._id,
-            fileName: r.fileName,
-            type: r.recordType || "Health Record",
-            verified: r.verified ?? false,
-            solanaTx: r.solanaTx,
-            uploadedAt: new Date(r.uploadedAt).toISOString().split("T")[0],
-            downloadUrl: r.downloadUrl,
-          }));
-          this.filteredRecords = this.records;
-        }
+        await this.fetchRecords();
       } catch (err) {
         console.error("❌ Upload failed:", err);
         alert("Upload failed: " + err.message);
-        this.records.shift();
+        this.records = this.records.filter((r) => r._id !== tempRecord._id);
+        this.filteredRecords = [...this.records];
       } finally {
         this.uploading = false;
       }
+    },
+    toggleSelectAllRecords() {
+      if (this.allRecordsSelected) {
+        this.selectedRecordIds = [];
+      } else {
+        this.selectedRecordIds = this.records.map((record) => record._id);
+      }
+    },
+    async handleCreateConsent() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return alert("Please log in first.");
+
+      if (!this.newConsent.hospitalId.trim()) {
+        return alert("Hospital ID is required.");
+      }
+
+      const hospitalExists = this.hospitals.some(
+        (hospital) => hospital.id === this.newConsent.hospitalId
+      );
+      if (!hospitalExists) {
+        return alert("Selected hospital could not be found.");
+      }
+
+      if (!this.selectedRecordIds.length) {
+        return alert("Select at least one record to authorize.");
+      }
+
+      this.consentSubmitting = true;
+      try {
+        const payload = {
+          hospitalId: this.newConsent.hospitalId,
+          recordIds: this.selectedRecordIds,
+          scopes: this.newConsent.scopes
+            .split(",")
+            .map((scope) => scope.trim())
+            .filter(Boolean),
+          purpose: this.newConsent.purpose.trim() || "care",
+          expiresAt: this.newConsent.expiresAt || null,
+        };
+
+        const result = await createConsent(
+          this.$store.state.apiURI,
+          bearer,
+          payload
+        );
+
+        if (result.success) {
+          this.showConsentForm = false;
+          this.newConsent = {
+            hospitalId: "",
+            scopes: "records.read",
+            purpose: "care",
+            expiresAt: "",
+          };
+          this.selectedRecordIds = [];
+          await this.fetchConsents();
+        } else {
+          alert(result.error || "Failed to create consent");
+        }
+      } catch (err) {
+        console.error("Error creating consent:", err);
+        alert("Failed to create consent");
+      } finally {
+        this.consentSubmitting = false;
+      }
+    },
+    async handleRevokeConsent(consentId) {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return alert("Please log in first.");
+
+      try {
+        const result = await revokeConsent(
+          this.$store.state.apiURI,
+          bearer,
+          consentId
+        );
+        if (result.success) {
+          await this.fetchConsents();
+        } else {
+          alert(result.error || "Failed to revoke consent");
+        }
+      } catch (err) {
+        console.error("Error revoking consent:", err);
+      }
+    },
+    consentStatus(consent) {
+      if (consent.revokedAt) {
+        return { label: "Revoked", variant: "bg-danger" };
+      }
+      if (consent.expiresAt && new Date(consent.expiresAt) < new Date()) {
+        return { label: "Expired", variant: "bg-warning" };
+      }
+      return { label: "Active", variant: "bg-success" };
+    },
+    consentStatusLabel(consent) {
+      return this.consentStatus(consent).label;
+    },
+    consentStatusVariant(consent) {
+      return this.consentStatus(consent).variant;
     },
   },
 };
@@ -222,6 +375,199 @@ export default {
             </div>
           </div>
 
+          <!-- Consent Management -->
+          <div class="p-3 rounded-3 mt-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+              <h5 class="text-uppercase text-white-50 mb-0">Hospital Authorizations</h5>
+              <button
+                class="btn btn-primary btn-sm px-3"
+                @click="showConsentForm = !showConsentForm"
+              >
+                {{ showConsentForm ? "Close" : "Authorize Hospital" }}
+              </button>
+            </div>
+
+            <div v-if="showConsentForm" class="frosted-sub p-3 rounded-3 mb-3">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Select Hospital</label>
+                  <div class="input-container">
+                    <select
+                      class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
+                      v-model="newConsent.hospitalId"
+                    >
+                      <option disabled value="" class="text-dark">
+                        {{ hospitals.length ? "Select a hospital" : "No hospitals available" }}
+                      </option>
+                      <option
+                        v-for="hospital in hospitals"
+                        :key="hospital.id"
+                        :value="hospital.id"
+                        class="text-dark"
+                      >
+                        {{ hospital.username }}
+                        <span v-if="hospital.email"> ({{ hospital.email }})</span>
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Scopes (comma separated)</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.scopes"
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      placeholder="records.read, labs.read"
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Purpose</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.purpose"
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      placeholder="care"
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Expires At (optional)</label>
+                  <div class="input-container">
+                    <input
+                      v-model="newConsent.expiresAt"
+                      type="date"
+                      class="w-100 h-100 pe-3"
+                    />
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label d-flex justify-content-between align-items-center">
+                    <span>Select Records to Authorize</span>
+                    <button
+                      class="btn btn-outline-light btn-sm"
+                      type="button"
+                      @click="toggleSelectAllRecords"
+                    >
+                      {{ allRecordsSelected ? "Clear" : "Select All" }}
+                    </button>
+                  </label>
+                  <div class="record-select border rounded-3 p-3">
+                    <p v-if="!records.length" class="text-white-50 mb-0">
+                      Upload records to authorize them for hospitals.
+                    </p>
+                    <div
+                      v-else
+                      class="d-flex flex-wrap gap-3 align-items-center"
+                    >
+                      <label
+                        v-for="record in records"
+                        :key="record._id"
+                        class="d-flex align-items-center gap-2"
+                      >
+                        <input
+                          type="checkbox"
+                          class="form-check-input"
+                          :value="record._id"
+                          v-model="selectedRecordIds"
+                        />
+                        <span>{{ record.fileName }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="text-end mt-3">
+                <button
+                  class="btn btn-primary btn-sm px-4"
+                  :disabled="consentSubmitting"
+                  @click="handleCreateConsent"
+                >
+                  <span v-if="consentSubmitting">Authorizing…</span>
+                  <span v-else>Authorize Hospital</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="loadingConsents" class="text-center text-white-50 py-4">
+              Loading hospital authorizations…
+            </div>
+            <div v-else-if="!consents.length" class="text-center text-white-50 py-4">
+              No hospital authorizations yet.
+            </div>
+            <div v-else class="table-responsive">
+              <table class="table table-borderless align-middle text-white">
+                <thead>
+                  <tr class="text-uppercase text-white-50 small">
+                    <th scope="col">Hospital</th>
+                    <th scope="col">Purpose</th>
+                    <th scope="col">Records</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Receipt</th>
+                    <th scope="col" class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="consent in consents"
+                    :key="consent.consentId"
+                    class="frosted-inner"
+                  >
+                    <td>
+                      <div class="fw-semibold">
+                        {{ consent.hospital?.username || "Unknown Hospital" }}
+                      </div>
+                      <div class="text-white-50 small">
+                        {{ consent.hospital?.email || "No email" }}
+                      </div>
+                    </td>
+                    <td class="text-white-50">{{ consent.purpose || "care" }}</td>
+                    <td class="text-white-50">
+                      <ul class="list-unstyled mb-0">
+                        <li v-for="record in consent.records" :key="record.id">
+                          {{ record.fileName }}
+                        </li>
+                      </ul>
+                    </td>
+                    <td>
+                      <span
+                        class="badge"
+                        :class="consentStatusVariant(consent)"
+                      >
+                        {{ consentStatusLabel(consent) }}
+                      </span>
+                      <div class="text-white-50 small mt-1">
+                        Expires: {{ consent.expiresAt ? (new Date(consent.expiresAt)).toLocaleDateString() : "—" }}
+                      </div>
+                    </td>
+                    <td>
+                      <a
+                        v-if="consent.solanaTx"
+                        :href="`https://explorer.solana.com/tx/${consent.solanaTx}?cluster=devnet`"
+                        target="_blank"
+                        class="text-info text-decoration-none small"
+                      >
+                        View TX
+                      </a>
+                      <span v-else class="text-white-50 small">—</span>
+                    </td>
+                    <td class="text-end">
+                      <button
+                        class="btn btn-outline-light btn-sm"
+                        :disabled="!!consent.revokedAt"
+                        @click="handleRevokeConsent(consent.consentId)"
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- Footer -->
           <div class="text-center mt-5 text-white-50 small">
             © 2025 BridgeHealth · Secure · Verified · Decentralized
@@ -277,5 +623,21 @@ export default {
 
 input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.record-select {
+  background: rgba(255, 255, 255, 0.03);
+}
+.record-select label {
+  cursor: pointer;
+}
+.record-select input[type="checkbox"] {
+  cursor: pointer;
 }
 </style>

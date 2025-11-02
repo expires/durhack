@@ -2,10 +2,8 @@ import { Storage } from "@google-cloud/storage";
 import { Connection, Keypair, Transaction, PublicKey } from "@solana/web3.js";
 import multer from "multer";
 import crypto from "crypto";
-import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import Record from "../../models/record.js";
-import User from "../../models/user.js";
 
 dotenv.config();
 
@@ -35,24 +33,12 @@ export const uploadFile = async (req, res) => {
             const file = req.file;
             if (!file) return res.status(400).json({ error: "No file uploaded" });
 
-            // 🔐 Verify user via JWT
-            const authHeader = req.headers["authorization"];
-            if (!authHeader)
-                return res.status(401).json({ error: "Missing authorization header" });
-
-            const token = authHeader.split(" ")[1];
-            let decoded;
-            try {
-                decoded = jwt.verify(token, process.env.TOKEN);
-            } catch {
-                return res.status(401).json({ error: "Invalid or expired token" });
+            const currentUser = req.user;
+            if (!currentUser) {
+                return res.status(401).json({ error: "Not Authenticated." });
             }
 
-            const userId = decoded.user_id;
-            const user = await User.findById(userId);
-            if (!user) return res.status(404).json({ error: "User not found" });
-
-            console.log(`📄 Uploading file for user: ${user.username}`);
+            console.log(`📄 Uploading file for user: ${currentUser.username}`);
 
             // 1️⃣ Hash file
             const hash = crypto.createHash("sha256").update(file.buffer).digest("hex");
@@ -96,7 +82,7 @@ export const uploadFile = async (req, res) => {
 
                 // 4️⃣ Save record to MongoDB
                 const newRecord = new Record({
-                    userId,
+                    userId: currentUser._id,
                     fileName: file.originalname,
                     recordType,
                     hash,
@@ -119,7 +105,7 @@ export const uploadFile = async (req, res) => {
                         gcsFileUrl: newRecord.gcsFileUrl,
                         timestamp: newRecord.timestamp,
                     },
-                    user: user.username,
+                    user: currentUser.username,
                 });
             });
 

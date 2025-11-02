@@ -6,7 +6,7 @@ const checkUsername = require("../../utils/validation/checkUsername");
 
 module.exports = async (req, res) => {
   try {
-    const { email, username, password } = req.body;
+    const { email, username, password, role = "patient" } = req.body;
     const usernameLow = username.toLowerCase();
 
     if (!(email && username && password)) {
@@ -15,6 +15,10 @@ module.exports = async (req, res) => {
         .send(
           JSON.stringify({ error: "Please provide all required information." })
         );
+    } else if (!["patient", "hospital"].includes(role)) {
+      return res
+        .status(400)
+        .send(JSON.stringify({ error: "Invalid user role supplied." }));
     } else if (!checkEmail(email) || !checkUsername(username)) {
       return res
         .status(400)
@@ -45,6 +49,7 @@ module.exports = async (req, res) => {
       email: email.toLowerCase(),
       username: usernameLow,
       password: encryptedPassword,
+      role,
       profilePicture: "./src/assets/images/logo.png",
       displayName: usernameLow,
       aboutMe: "",
@@ -52,13 +57,19 @@ module.exports = async (req, res) => {
       skills: [],
       projects: [],
     });
-        const token = jwt.sign({ user_id: newUser._id }, process.env.TOKEN, {
+    const token = jwt.sign({ user_id: newUser._id }, process.env.TOKEN, {
       expiresIn: "1h",
     });
     return res.status(201).send(
       JSON.stringify({
         success: { success: "Successfully registered." },
         token: token,
+        user: {
+          id: newUser._id,
+          email: newUser.email,
+          username: newUser.username,
+          role: newUser.role,
+        },
       })
     );
   } catch (error) {

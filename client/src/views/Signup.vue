@@ -13,6 +13,11 @@ export default {
       password: "",
       buttonActive: true,
       showPassword: false,
+      role: "patient",
+      roles: [
+        { label: "Patient", value: "patient" },
+        { label: "Hospital", value: "hospital" },
+      ],
     };
   },
 
@@ -22,7 +27,8 @@ export default {
       handler(notif) {
         if (notif.success === "Already logged in.") {
           this.$store.dispatch("updateNotification", { success: "" });
-          this.$router.push("/");
+          const role = localStorage.getItem("role");
+          this.$router.push(role === "hospital" ? "/hospital" : "/dashboard");
         }
       },
     },
@@ -52,6 +58,7 @@ export default {
         email: this.email,
         username: this.username,
         password: this.password,
+        role: this.role,
       };
       let result = await postSignup(this.$store.state.apiURI, body);
       this.buttonActive = true;
@@ -60,7 +67,13 @@ export default {
       } else {
         this.$store.dispatch("updateNotification", result.success);
         localStorage.setItem("bearer", result.token);
-        this.$router.push("/");
+        if (result.user) {
+          this.$store.dispatch("updateUser", result.user);
+          localStorage.setItem("role", result.user.role);
+        }
+        const destination =
+          result.user?.role === "hospital" ? "/hospital" : "/dashboard";
+        this.$router.push(destination);
       }
     },
   },
@@ -119,6 +132,22 @@ export default {
             ></i>
           </div>
         </Transition>
+      </div>
+      <div class="input-container h-100 rounded-3 mt-2">
+        <i class="uil uil-building" style="color: white"></i>
+        <select
+          class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
+          v-model="role"
+        >
+          <option
+            v-for="option in roles"
+            :key="option.value"
+            :value="option.value"
+            class="text-dark"
+          >
+            {{ option.label }}
+          </option>
+        </select>
       </div>
       <button
         class="btn btn-primary w-100 mt-2"

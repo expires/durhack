@@ -2,17 +2,28 @@
 import { deleteLogout } from "../../services/index";
 
 export default {
-  data() {
-    return {
-      bearer: localStorage.getItem("bearer") || "",
-    };
+  computed: {
+    userRole() {
+      return this.$store.state.user?.role || localStorage.getItem("role");
+    },
+    isHospital() {
+      return this.userRole === "hospital";
+    },
+    isAuthenticated() {
+      return !!this.$store.state.user || !!localStorage.getItem("bearer");
+    },
   },
   methods: {
     async logout() {
       this.$router.push("/login");
-      localStorage.setItem("bearer", "");
-      const result = await deleteLogout(this.$store.state.apiURI, this.bearer);
-      this.$store.dispatch("updateNotification", result);
+      const bearer = localStorage.getItem("bearer");
+      localStorage.removeItem("bearer");
+      localStorage.removeItem("role");
+      this.$store.dispatch("updateUser", null);
+      if (bearer) {
+        const result = await deleteLogout(this.$store.state.apiURI, bearer);
+        this.$store.dispatch("updateNotification", result);
+      }
     },
   },
 };
@@ -37,23 +48,38 @@ export default {
       <div class="d-flex align-items-center gap-3">
         <!-- Not Logged In -->
         <RouterLink
-            v-if="bearer.length < 1"
+            v-if="!isAuthenticated"
             to="/login"
             class="btn-nav text-decoration-none"
         >
           Login
         </RouterLink>
         <RouterLink
-            v-if="bearer.length < 1"
+            v-if="!isAuthenticated"
             to="/signup"
             class="btn-nav text-decoration-none"
         >
           Sign Up
         </RouterLink>
 
+        <RouterLink
+            v-if="isAuthenticated && !isHospital"
+            to="/dashboard"
+            class="btn-nav text-decoration-none"
+        >
+          My Records
+        </RouterLink>
+        <RouterLink
+            v-if="isAuthenticated && isHospital"
+            to="/hospital"
+            class="btn-nav text-decoration-none"
+        >
+          Patients
+        </RouterLink>
+
         <!-- Primary Logout (no gradient, frosted-glow) -->
         <button
-            v-if="bearer.length > 0"
+            v-if="isAuthenticated"
             class="btn-frosted-primary"
             @click="logout"
         >

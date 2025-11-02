@@ -7,6 +7,7 @@ const store = new Vuex.Store({
     search: "",
     notification: {},
     saves: false,
+    user: null,
   },
   mutations: {
     setUsers(state, usersData) {
@@ -21,6 +22,9 @@ const store = new Vuex.Store({
     setSave(state) {
       state.saves = !state.saves;
     },
+    setUser(state, user) {
+      state.user = user;
+    },
   },
   actions: {
     updateUsers({ commit }, usersData) {
@@ -34,6 +38,9 @@ const store = new Vuex.Store({
     },
     updateSave({ commit }) {
       commit("setSave");
+    },
+    updateUser({ commit }, user) {
+      commit("setUser", user);
     },
   },
 });
