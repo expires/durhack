@@ -368,7 +368,7 @@ export default {
             </button>
           </div>
 
-          <div v-if="userRole === 'patient'" class="frosted-sub p-3 mb-4 rounded-3">
+          <div v-if="userRole === 'patient'" class="p-3 mb-4 rounded-3">
             <div v-if="needsProfile">
               <h5 class="text-uppercase text-white-50 mb-2">Complete Your Profile</h5>
               <p class="text-white-50 small">
@@ -377,7 +377,7 @@ export default {
               <form @submit.prevent="saveProfile" class="row g-3">
                 <div class="col-12 col-md-4">
                   <label class="form-label">Full Name</label>
-                  <div class="input-container">
+                  <div class="input-container rounded-3">
                     <input
                       type="text"
                       class="w-100 h-100 pe-3"
@@ -388,7 +388,7 @@ export default {
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="form-label">Date of Birth</label>
-                  <div class="input-container">
+                  <div class="input-container rounded-3">
                     <input
                       type="date"
                       class="w-100 h-100 pe-3"
@@ -399,7 +399,7 @@ export default {
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="form-label">Home Address</label>
-                  <div class="input-container">
+                  <div class="input-container rounded-3">
                     <input
                       type="text"
                       class="w-100 h-100 pe-3"
@@ -416,34 +416,35 @@ export default {
                     :disabled="profileSaving"
                   >
                     <span v-if="profileSaving" class="spinner-border spinner-border-sm"></span>
-                    <span v-else>Save Details</span>
+                    <span v-else style="color:#00ffaa !important;">Save Details</span>
                   </button>
                 </div>
               </form>
             </div>
             <div v-else>
-              <h5 class="text-uppercase text-white-50 mb-2">Patient Overview</h5>
-              <div class="row g-3 text-white">
-                <div class="col-12 col-md-4">
-                  <div class="overview-box">
-                    <p class="text-white-50 small mb-1">Name</p>
-                    <p class="fw-semibold mb-0">{{ user.name }}</p>
-                  </div>
-                </div>
-                <div class="col-12 col-md-4" v-if="userAge !== null">
-                  <div class="overview-box">
-                    <p class="text-white-50 small mb-1">Age</p>
-                    <p class="fw-semibold mb-0">{{ userAge }} years</p>
-                  </div>
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="overview-box">
-                    <p class="text-white-50 small mb-1">Home Address</p>
-                    <p class="fw-semibold mb-0">{{ user.address }}</p>
-                  </div>
-                </div>
+              <h5 class="text-uppercase text-white-50 mb-3">Patient Overview</h5>
+              <div class="table-responsive">
+                <table class="table table-borderless align-middle text-white">
+                  <thead>
+                  <tr class="text-uppercase text-white-50 small">
+                    <th scope="col">Full Name</th>
+                    <th scope="col">Age</th>
+                    <th scope="col">Home Address</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr>
+                    <td class="fw-semibold">{{ user.name || "—" }}</td>
+                    <td class="text-white-50">
+                      {{ userAge !== null ? userAge + " years" : "—" }}
+                    </td>
+                    <td class="text-white-50">{{ user.address || "—" }}</td>
+                  </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+
           </div>
 
           <!-- Records Section -->
@@ -647,7 +648,7 @@ export default {
             <div v-if="loadingConsents" class="text-center text-white-50 py-4">
               Loading provider authorizations…
             </div>
-            <div v-else-if="!consents.length" class="text-center text-white-50 py-4">
+            <div v-else-if="!consents.length" class="text-white-50 py-4">
               No provider authorizations yet.
             </div>
             <div v-else class="table-responsive">

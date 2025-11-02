@@ -123,7 +123,7 @@ export default {
 /* ⚡ Frosted Primary Button (Logout) */
 .btn-frosted-primary {
   background: rgba(0, 255, 170, 0.15);
-  border: 1px solid rgba(0, 255, 170, 0.4);
+  border: 2px solid rgba(0, 255, 170, 0.4);
   color: #00ffaa;
   padding: 0.5rem 1.2rem;
   border-radius: 0.6rem;

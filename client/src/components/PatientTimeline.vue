@@ -37,8 +37,8 @@ export default {
 </script>
 
 <template>
-  <div class="timeline-container">
-    <h5 class="text-uppercase text-white-50 mb-3">Consent Timeline</h5>
+  <div class="timeline-container ps-3">
+    <h5 class="text-uppercase text-white-50 mb-3  ">Consent Timeline</h5>
     <p v-if="loading" class="text-white-50">Loading timeline…</p>
     <p v-else-if="error" class="text-danger">{{ error }}</p>
     <ul v-else class="timeline">

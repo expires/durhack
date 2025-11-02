@@ -110,7 +110,7 @@ export default {
               </select>
             </div>
             <div>
-              <label class="form-label text-white-50">Hospital Name</label>
+              <label class="form-label text-white-50">Provider Name</label>
               <input
                 type="text"
                 class="form-control bg-transparent text-white border-light"
@@ -148,11 +148,11 @@ export default {
 
             <button
               type="submit"
-              class="btn btn-primary mt-2"
+              class="btn btn-primary mt-2 "
               :disabled="loading"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm"></span>
-              <span v-else>Create Provider Account</span>
+              <span class="text-primary" style="color: #00ffaa!important;" v-else>Create Provider Account</span>
             </button>
 
             <p v-if="successMessage" class="text-success small mb-0">{{ successMessage }}</p>
