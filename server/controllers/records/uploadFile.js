@@ -4,6 +4,8 @@ import multer from "multer";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import Record from "../../models/record.js";
+import Consent from "../../models/consent.js";
+import User from "../../models/user.js";
 
 dotenv.config();
 
@@ -29,7 +31,7 @@ export const uploadFile = async (req, res) => {
         try {
             if (err) return res.status(400).json({ error: "File upload failed" });
 
-            const { recordType, timestamp } = req.body;
+            const { recordType, timestamp, patientId } = req.body;
             const file = req.file;
             if (!file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -38,7 +40,38 @@ export const uploadFile = async (req, res) => {
                 return res.status(401).json({ error: "Not Authenticated." });
             }
 
-            console.log(`📄 Uploading file for user: ${currentUser.username}`);
+            let targetUserId = currentUser._id;
+
+            if (["hospital", "doctor"].includes(currentUser.role)) {
+                if (!patientId) {
+                    return res.status(400).json({ error: "patientId is required for provider uploads." });
+                }
+
+                const patient = await User.findById(patientId).lean();
+                if (!patient || patient.role !== "patient") {
+                    return res.status(404).json({ error: "Patient not found." });
+                }
+
+                const hasConsent = await Consent.findOne({
+                    patientId,
+                    revokedAt: { $exists: false },
+                    $or: [
+                        { providerId: currentUser._id },
+                        { hospitalId: currentUser._id },
+                    ],
+                }).lean();
+
+                if (!hasConsent) {
+                    return res.status(403).json({ error: "No active consent for this patient." });
+                }
+
+                targetUserId = patientId;
+                console.log(`📄 Provider ${currentUser.username} uploading file for patient ${patient.username}`);
+            } else if (currentUser.role !== "patient") {
+                return res.status(403).json({ error: "This account cannot upload records." });
+            } else {
+                console.log(`📄 Uploading file for user: ${currentUser.username}`);
+            }
 
             // 1️⃣ Hash file
             const hash = crypto.createHash("sha256").update(file.buffer).digest("hex");
@@ -82,7 +115,7 @@ export const uploadFile = async (req, res) => {
 
                 // 4️⃣ Save record to MongoDB
                 const newRecord = new Record({
-                    userId: currentUser._id,
+                    userId: targetUserId,
                     fileName: file.originalname,
                     recordType,
                     hash,

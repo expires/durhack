@@ -1,5 +1,5 @@
 <script>
-import { getAuth } from "../services/index";
+import { getAuth, postUpload } from "../services/index";
 import { getHospitalDashboard } from "../services/hospital";
 import Nav from "../components/elements/Nav.vue";
 
@@ -22,6 +22,10 @@ export default {
       return this.patients.filter((patient) =>
         (patient.name || "").toLowerCase().includes(query)
       );
+    },
+    canUploadForPatients() {
+      const role = this.$store.state.user?.role || localStorage.getItem("role");
+      return ["hospital", "doctor"].includes(role);
     },
   },
   async mounted() {
@@ -69,6 +73,7 @@ export default {
         this.patients = (result.patients || []).map((patient) => ({
           ...patient,
           open: false,
+          uploading: false,
         }));
       } catch (err) {
         console.error("Hospital dashboard error", err);
@@ -79,6 +84,52 @@ export default {
     },
     togglePatient(patient) {
       patient.open = !patient.open;
+    },
+    async promptUpload(patient) {
+      if (!this.canUploadForPatients || patient.uploading) return;
+
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "*/*";
+
+      input.onchange = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const bearer = localStorage.getItem("bearer");
+        if (!bearer) {
+          this.$router.push("/login");
+          return;
+        }
+
+        patient.uploading = true;
+        try {
+          const recordType = "Provider Uploaded Record";
+          const timestamp = new Date().toISOString();
+          const result = await postUpload(
+            this.$store.state.apiURI,
+            bearer,
+            file,
+            recordType,
+            timestamp,
+            patient._id
+          );
+          if (result.error) {
+            throw new Error(result.error);
+          }
+          await this.fetchDashboard();
+        } catch (err) {
+          console.error("Provider upload failed:", err);
+          this.$store.dispatch("updateNotification", {
+            error: err.message || "Failed to upload record.",
+          });
+        } finally {
+          patient.uploading = false;
+          input.value = "";
+        }
+      };
+
+      input.click();
     },
   },
 };
@@ -102,10 +153,9 @@ export default {
               <span class="input-group-text bg-transparent border-light text-white-50">
                 <i class="uil uil-search"></i>
               </span>
-              
               <input
                 type="text"
-                class="form-control frosted-sub text-white mb-4"
+                class="form-control bg-transparent border-light text-white"
                 placeholder="Search patients by name..."
                 v-model="searchQuery"
               />
@@ -145,6 +195,23 @@ export default {
                 <span class="text-white-50 small">
                   {{ patient.open ? "Hide" : "View" }}
                 </span>
+              </div>
+              <div
+                v-if="canUploadForPatients"
+                class="patient-card__actions"
+              >
+                <button
+                  class="btn btn-sm btn-outline-success"
+                  :disabled="patient.uploading"
+                  @click.stop="promptUpload(patient)"
+                >
+                  <span v-if="patient.uploading">
+                    Uploading…
+                  </span>
+                  <span v-else>
+                    Upload Record
+                  </span>
+                </button>
               </div>
               <transition name="fade">
                 <div v-if="patient.open" class="patient-card__body">
@@ -216,6 +283,14 @@ export default {
 .patient-card__body {
   padding: 0.5rem 1.1rem 1.1rem;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.patient-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.1rem 0.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .record-item {
