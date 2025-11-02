@@ -10,6 +10,8 @@ const {
   listHospitalConsents,
 } = require("../controllers/consents");
 const listProviders = require("../controllers/hospital/listHospitals");
+const hospitalDashboard = require("../controllers/hospitals/dashboard");
+const getConsentTimeline = require("../controllers/consents/timeline");
 
 router.post("/signup", require("../controllers/auth/signup"));
 router.post("/login", require("../controllers/auth/login"));
@@ -23,8 +25,10 @@ router.get("/files/get", auth, getFiles);
 router.post("/consents/create", auth, createConsent);
 router.get("/consents/list", auth, listPatientConsents);
 router.post("/consents/revoke", auth, revokeConsent);
+router.get("/consents/timeline", auth, getConsentTimeline);
 
 router.get("/hospital/patients", auth, listHospitalConsents);
 router.get("/providers", auth, listProviders);
+router.get("/hospitals/dashboard", auth, hospitalDashboard);
 
 module.exports = router;

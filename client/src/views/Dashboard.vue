@@ -3,9 +3,10 @@ import { getAuth, postUpload, getFiles } from "../services/index";
 import { createConsent, getConsents, revokeConsent } from "../services/consents";
 import { getProviders } from "../services/hospital";
 import Nav from "../components/elements/Nav.vue";
+import PatientTimeline from "../components/PatientTimeline.vue";
 
 export default {
-  components: { Nav },
+  components: { Nav, PatientTimeline },
   data() {
     return {
       records: [],
@@ -105,7 +106,9 @@ export default {
       this.loadingConsents = true;
       try {
         const result = await getConsents(this.$store.state.apiURI, bearer);
-        this.consents = result.consents || [];
+        this.consents = (result.consents || []).filter(
+          (consent) => !consent.revokedAt
+        );
       } catch (err) {
         console.error("Failed to fetch consents:", err);
       } finally {
@@ -208,15 +211,16 @@ export default {
           payload
         );
 
-          if (result.success) {
-            this.showConsentForm = false;
-            this.newConsent = {
-              providerId: "",
-              purpose: "care",
-              expiresAt: "",
-            };
-            this.selectedRecordIds = [];
-            await this.fetchConsents();
+        if (result.success) {
+          this.showConsentForm = false;
+          this.newConsent = {
+            providerId: "",
+            purpose: "care",
+            expiresAt: "",
+          };
+          this.selectedRecordIds = [];
+          await this.fetchConsents();
+          this.$refs.timeline?.fetchTimeline();
         } else {
           alert(result.error || "Failed to create consent");
         }
@@ -239,6 +243,7 @@ export default {
         );
         if (result.success) {
           await this.fetchConsents();
+          this.$refs.timeline?.fetchTimeline();
         } else {
           alert(result.error || "Failed to revoke consent");
         }
@@ -568,6 +573,8 @@ export default {
               </table>
             </div>
           </div>
+
+          <PatientTimeline ref="timeline" class="mt-4" />
 
           <!-- Footer -->
           <div class="text-center mt-5 text-white-50 small">

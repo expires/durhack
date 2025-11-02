@@ -124,9 +124,32 @@ module.exports = async (req, res) => {
       receiptHash,
     });
 
+    const memoData = JSON.stringify({
+      bridgeHealth: {
+        action: "consent.create",
+        patient: consent.patientId.toString(),
+        provider: consent.providerId.toString(),
+        scopes: consent.scopes,
+        purpose: consent.purpose,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    const memoTx = new Transaction().add({
+      keys: [],
+      programId: MEMO_PROGRAM_ID,
+      data: Buffer.from(memoData),
+    });
+
+    const memoSignature = await connection.sendTransaction(memoTx, [payer]);
+
+    consent.solanaTx = memoSignature;
+    await consent.save();
+
     return res.status(201).json({
       success: true,
-      consent,
+      solanaTx: memoSignature,
+      consentId: consent.consentId,
     });
   } catch (err) {
     console.error("Error creating consent:", err);

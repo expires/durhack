@@ -52,3 +52,20 @@ export async function revokeConsent(API_URI, bearer, consentId) {
     return { error: "Failed to revoke consent" };
   }
 }
+
+export async function getConsentTimeline(API_URI, bearer) {
+  try {
+    const headers = new Headers();
+    headers.append("Authorization", "Bearer " + bearer);
+
+    const response = await fetch(`${API_URI}consents/timeline`, {
+      method: "GET",
+      headers,
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("❌ Consent Timeline Error:", error);
+    return { error: "Failed to load consent timeline" };
+  }
+}
