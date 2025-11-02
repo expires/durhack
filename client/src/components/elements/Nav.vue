@@ -62,21 +62,6 @@ export default {
           Sign Up
         </RouterLink>
 
-        <RouterLink
-            v-if="isAuthenticated && !isHospital"
-            to="/dashboard"
-            class="btn-nav text-decoration-none"
-        >
-          My Records
-        </RouterLink>
-        <RouterLink
-            v-if="isAuthenticated && isHospital"
-            to="/hospital"
-            class="btn-nav text-decoration-none"
-        >
-          Patients
-        </RouterLink>
-
         <!-- Primary Logout (no gradient, frosted-glow) -->
         <button
             v-if="isAuthenticated"

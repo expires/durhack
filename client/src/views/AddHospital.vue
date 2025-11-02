@@ -77,7 +77,7 @@ export default {
     <div class="row justify-content-center">
       <div class="col-12 col-md-8 col-lg-6">
         <div class="frosted p-4 rounded-4 shadow">
-          <h2 class="fw-bold mb-4 text-center">Admin: Create Hospital Account</h2>
+          <h2 class="fw-bold mb-4 text-center">Admin: Create Provider Account</h2>
           <p class="text-white-50 small text-center mb-4">
             Enter the admin password and hospital details to create a new provider account.
           </p>
@@ -152,7 +152,7 @@ export default {
               :disabled="loading"
             >
               <span v-if="loading" class="spinner-border spinner-border-sm"></span>
-              <span v-else>Create Hospital</span>
+              <span v-else>Create Provider Account</span>
             </button>
 
             <p v-if="successMessage" class="text-success small mb-0">{{ successMessage }}</p>
