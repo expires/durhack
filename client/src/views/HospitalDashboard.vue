@@ -29,7 +29,16 @@ export default {
         localStorage.setItem("role", auth.user.role);
       }
 
-      if (!auth?.success || !["hospital", "doctor", "researcher"].includes(auth.user?.role)) {
+      const providerRoles = [
+        "hospital",
+        "doctor",
+        "researcher",
+        "auditor",
+        "insurance",
+        "emergency",
+      ];
+
+      if (!auth?.success || !providerRoles.includes(auth.user?.role)) {
         this.$router.push("/dashboard");
         return;
       }
@@ -110,26 +119,37 @@ export default {
               </div>
               <transition name="fade">
                 <div v-if="patient.open" class="patient-card__body">
-                  <div
-                    v-for="file in patient.records"
-                    :key="file._id"
-                    class="record-item d-flex justify-content-between align-items-center"
-                  >
-                    <div>
-                      <div class="fw-semibold">{{ file.fileName }}</div>
-                      <div class="text-white-50 small">
-                        {{ file.recordType || "Record" }} ·
-                        {{ file.uploadedAt ? new Date(file.uploadedAt).toLocaleDateString() : "Unknown date" }}
+                    <div
+                      v-for="file in patient.records"
+                      :key="file._id"
+                      class="record-item d-flex justify-content-between align-items-center"
+                    >
+                      <div>
+                        <div class="fw-semibold">{{ file.fileName }}</div>
+                        <div class="text-white-50 small">
+                          {{ file.recordType || "Record" }} ·
+                          {{ file.uploadedAt ? new Date(file.uploadedAt).toLocaleDateString() : "Unknown date" }}
+                        </div>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <a
+                          class="btn btn-sm btn-outline-light"
+                          :href="file.previewUrl || file.downloadUrl"
+                          target="_blank"
+                          rel="noopener"
+                        >
+                          Preview
+                        </a>
+                        <a
+                          class="btn btn-sm btn-outline-primary"
+                          :href="file.downloadUrl"
+                          target="_blank"
+                          rel="noopener"
+                        >
+                          Download
+                        </a>
                       </div>
                     </div>
-                    <a
-                      class="btn btn-sm btn-outline-primary"
-                      :href="file.downloadUrl"
-                      target="_blank"
-                    >
-                      Download
-                    </a>
-                  </div>
                   <div v-if="!patient.records.length" class="text-white-50 small">
                     No records available for this patient.
                   </div>

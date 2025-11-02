@@ -23,7 +23,17 @@ const buildSignedUrl = async (gcsUrl) => {
 
 module.exports = async (req, res) => {
   try {
-    if (!req.user || !["hospital", "doctor", "researcher"].includes(req.user.role)) {
+    if (
+      !req.user ||
+      ![
+        "hospital",
+        "doctor",
+        "researcher",
+        "auditor",
+        "insurance",
+        "emergency",
+      ].includes(req.user.role)
+    ) {
       return res.status(403).json({ error: "Only providers can view this dashboard." });
     }
 
@@ -59,6 +69,7 @@ module.exports = async (req, res) => {
             recordType: record.recordType,
             uploadedAt: record.uploadedAt,
             downloadUrl: await buildSignedUrl(record.gcsFileUrl),
+            previewUrl: await buildSignedUrl(record.gcsFileUrl),
           }))
         );
 

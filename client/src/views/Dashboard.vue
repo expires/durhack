@@ -1,5 +1,5 @@
 <script>
-import { getAuth, postUpload, getFiles } from "../services/index";
+import { getAuth, postUpload, getFiles, updateProfile } from "../services/index";
 import { createConsent, getConsents, revokeConsent } from "../services/consents";
 import { getProviders } from "../services/hospital";
 import Nav from "../components/elements/Nav.vue";
@@ -19,24 +19,23 @@ export default {
       consentSubmitting: false,
       newConsent: {
         providerId: "",
-        purpose: "care",
         expiresAt: "",
       },
       selectedRecordIds: [],
       providers: [],
-      purposeOptions: [
-        { value: "care", text: "Direct Care / Treatment" },
-        { value: "research", text: "Research & Studies" },
-        { value: "audit", text: "Audit & Compliance" },
-        { value: "billing", text: "Billing & Insurance" },
-        { value: "referral", text: "Referral / Consultation" },
-        { value: "emergency", text: "Emergency Access" },
-        { value: "data_portability", text: "Data Portability" },
-        { value: "legal", text: "Legal / Forensics" },
-      ],
+      profileForm: {
+        name: "",
+        dateOfBirth: "",
+        address: "",
+      },
+      profileSaving: false,
+      profileError: null,
     };
   },
   computed: {
+    user() {
+      return this.$store.state.user || {};
+    },
     userRole() {
       return this.$store.state.user?.role || localStorage.getItem("role");
     },
@@ -46,11 +45,43 @@ export default {
         this.selectedRecordIds.length === this.records.length
       );
     },
+    needsProfile() {
+      if (this.userRole !== "patient") return false;
+      const u = this.user;
+      return !(u?.name && u?.dateOfBirth && u?.address);
+    },
+    userAge() {
+      if (!this.user?.dateOfBirth) return null;
+      const dob = new Date(this.user.dateOfBirth);
+      if (Number.isNaN(dob.getTime())) return null;
+      const diff = Date.now() - dob.getTime();
+      return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+    },
+  },
+  watch: {
+    user: {
+      handler(newVal, oldVal) {
+        if (newVal) {
+          this.syncProfileForm(newVal);
+        }
+      },
+      deep: false,
+    },
   },
   async mounted() {
     await this.bootstrap();
   },
   methods: {
+    syncProfileForm(user = this.user) {
+      if (!user) return;
+      this.profileForm = {
+        name: user.name || "",
+        dateOfBirth: user.dateOfBirth
+          ? new Date(user.dateOfBirth).toISOString().split("T")[0]
+          : "",
+        address: user.address || "",
+      };
+    },
     async bootstrap() {
       const bearer = localStorage.getItem("bearer");
       if (!(bearer?.length)) {
@@ -62,6 +93,9 @@ export default {
       if (auth?.user) {
         this.$store.dispatch("updateUser", auth.user);
         localStorage.setItem("role", auth.user.role);
+        if (auth.user.role === "patient") {
+          this.syncProfileForm(auth.user);
+        }
       }
 
       if (!auth?.success || (auth.user && auth.user.role !== "patient")) {
@@ -98,6 +132,39 @@ export default {
         this.selectedRecordIds = this.selectedRecordIds.filter((id) =>
           this.records.some((record) => record._id === id)
         );
+      }
+    },
+    async saveProfile() {
+      const bearer = localStorage.getItem("bearer");
+      if (!bearer) return;
+      this.profileSaving = true;
+      this.profileError = null;
+      try {
+        const payload = {
+          name: this.profileForm.name,
+          dateOfBirth: this.profileForm.dateOfBirth,
+          address: this.profileForm.address,
+        };
+
+        const result = await updateProfile(
+          this.$store.state.apiURI,
+          bearer,
+          payload
+        );
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        if (result.user) {
+          this.$store.dispatch("updateUser", result.user);
+          this.syncProfileForm(result.user);
+        }
+      } catch (err) {
+        console.error("Profile update failed:", err);
+        this.profileError = err.message || "Failed to save profile.";
+      } finally {
+        this.profileSaving = false;
       }
     },
     async fetchConsents() {
@@ -201,7 +268,6 @@ export default {
         const payload = {
           providerId: this.newConsent.providerId,
           recordIds: this.selectedRecordIds,
-          purpose: this.newConsent.purpose,
           expiresAt: this.newConsent.expiresAt || null,
         };
 
@@ -267,8 +333,17 @@ export default {
       return this.consentStatus(consent).variant;
     },
     purposeLabel(value) {
-      const match = this.purposeOptions.find((option) => option.value === value);
-      return match ? match.text : value;
+      const map = {
+        care: "Direct Care / Treatment",
+        research: "Research & Studies",
+        audit: "Audit & Compliance",
+        billing: "Billing & Insurance",
+        referral: "Referral / Consultation",
+        emergency: "Emergency Access",
+        data_portability: "Data Portability",
+        legal: "Legal / Forensics",
+      };
+      return map[value] || value || "care";
     },
   },
 };
@@ -291,6 +366,84 @@ export default {
             >
               Uploading...
             </button>
+          </div>
+
+          <div v-if="userRole === 'patient'" class="frosted-sub p-3 mb-4 rounded-3">
+            <div v-if="needsProfile">
+              <h5 class="text-uppercase text-white-50 mb-2">Complete Your Profile</h5>
+              <p class="text-white-50 small">
+                We need a few more details to personalize your dashboard.
+              </p>
+              <form @submit.prevent="saveProfile" class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Full Name</label>
+                  <div class="input-container">
+                    <input
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      v-model="profileForm.name"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Date of Birth</label>
+                  <div class="input-container">
+                    <input
+                      type="date"
+                      class="w-100 h-100 pe-3"
+                      v-model="profileForm.dateOfBirth"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Home Address</label>
+                  <div class="input-container">
+                    <input
+                      type="text"
+                      class="w-100 h-100 pe-3"
+                      v-model="profileForm.address"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end align-items-center gap-3">
+                  <span v-if="profileError" class="text-danger small">{{ profileError }}</span>
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    :disabled="profileSaving"
+                  >
+                    <span v-if="profileSaving" class="spinner-border spinner-border-sm"></span>
+                    <span v-else>Save Details</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div v-else>
+              <h5 class="text-uppercase text-white-50 mb-2">Patient Overview</h5>
+              <div class="row g-3 text-white">
+                <div class="col-12 col-md-4">
+                  <div class="overview-box">
+                    <p class="text-white-50 small mb-1">Name</p>
+                    <p class="fw-semibold mb-0">{{ user.name }}</p>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4" v-if="userAge !== null">
+                  <div class="overview-box">
+                    <p class="text-white-50 small mb-1">Age</p>
+                    <p class="fw-semibold mb-0">{{ userAge }} years</p>
+                  </div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <div class="overview-box">
+                    <p class="text-white-50 small mb-1">Home Address</p>
+                    <p class="fw-semibold mb-0">{{ user.address }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Records Section -->
@@ -359,9 +512,10 @@ export default {
                   </td>
                   <td>
                     <a
-                        v-if="record.solanaTx !== 'pending...'"
+                        v-if="record.solanaTx && record.solanaTx !== 'pending...'"
                         :href="`https://explorer.solana.com/tx/${record.solanaTx}?cluster=devnet`"
                         target="_blank"
+                        rel="noopener"
                         class="text-info text-decoration-none small"
                     >
                       {{ record.solanaTx.slice(0, 8) }}...
@@ -369,14 +523,25 @@ export default {
                     <span v-else class="text-white-50 small">Pending...</span>
                   </td>
                   <td class="text-end">
-                    <a
-                        v-if="record.downloadUrl"
-                        :href="record.downloadUrl"
-                        target="_blank"
-                        class="btn btn-outline-light btn-sm"
-                    >
-                      Download
-                    </a>
+                    <div class="d-flex gap-2 justify-content-end">
+                      <a
+                          v-if="record.downloadUrl"
+                          :href="record.downloadUrl"
+                          target="_blank"
+                          class="btn btn-outline-light btn-sm"
+                      >
+                        Download
+                      </a>
+                      <a
+                          v-if="record.previewUrl"
+                          :href="record.previewUrl"
+                          target="_blank"
+                          rel="noopener"
+                          class="btn btn-outline-light btn-sm"
+                      >
+                        Preview
+                      </a>
+                    </div>
                   </td>
                 </tr>
                 </tbody>
@@ -420,24 +585,6 @@ export default {
                       >
                         {{ provider.username }}
                         <span v-if="provider.email"> ({{ provider.email }})</span>
-                      </option>
-                    </select>
-                  </div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <label class="form-label">Purpose</label>
-                  <div class="input-container">
-                    <select
-                      class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
-                      v-model="newConsent.purpose"
-                    >
-                      <option
-                        v-for="option in purposeOptions"
-                        :key="option.value"
-                        :value="option.value"
-                        class="text-dark"
-                      >
-                        {{ option.text }}
                       </option>
                     </select>
                   </div>
@@ -653,5 +800,13 @@ input::placeholder {
 }
 .record-select input[type="checkbox"] {
   cursor: pointer;
+}
+
+.overview-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-height: 92px;
 }
 </style>

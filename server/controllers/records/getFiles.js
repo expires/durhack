@@ -54,6 +54,7 @@ export const getFiles = async (req, res) => {
           uploadedAt: r.uploadedAt || r.timestamp,
           verified,
           downloadUrl: url,
+          previewUrl: url,
         };
       })
     );

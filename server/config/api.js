@@ -12,6 +12,14 @@ const {
 const listProviders = require("../controllers/hospital/listHospitals");
 const hospitalDashboard = require("../controllers/hospitals/dashboard");
 const getConsentTimeline = require("../controllers/consents/timeline");
+const updateProfile = require("../controllers/users/updateProfile");
+const { createProviderHandler } = require("../controllers/admin/addProvider");
+const addHospital = createProviderHandler("hospital");
+const addDoctor = createProviderHandler("doctor");
+const addResearcher = createProviderHandler("researcher");
+const addAuditor = createProviderHandler("auditor");
+const addInsurance = createProviderHandler("insurance");
+const addEmergency = createProviderHandler("emergency");
 
 router.post("/signup", require("../controllers/auth/signup"));
 router.post("/login", require("../controllers/auth/login"));
@@ -30,5 +38,13 @@ router.get("/consents/timeline", auth, getConsentTimeline);
 router.get("/hospital/patients", auth, listHospitalConsents);
 router.get("/providers", auth, listProviders);
 router.get("/hospitals/dashboard", auth, hospitalDashboard);
+
+router.put("/users/profile", auth, updateProfile);
+router.post("/add-hospital", addHospital);
+router.post("/add-doctor", addDoctor);
+router.post("/add-researcher", addResearcher);
+router.post("/add-auditor", addAuditor);
+router.post("/add-insurance", addInsurance);
+router.post("/add-emergency", addEmergency);
 
 module.exports = router;

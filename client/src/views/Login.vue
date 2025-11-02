@@ -17,6 +17,11 @@ export default {
       roles: [
         { label: "Patient", value: "patient" },
         { label: "Hospital", value: "hospital" },
+        { label: "Doctor", value: "doctor" },
+        { label: "Researcher", value: "researcher" },
+        { label: "Auditor / Compliance", value: "auditor" },
+        { label: "Insurance / Billing", value: "insurance" },
+        { label: "Emergency Responder", value: "emergency" },
       ],
     };
   },
@@ -31,7 +36,17 @@ export default {
         ) {
           this.$store.dispatch("updateNotification", { success: "" });
           const role = localStorage.getItem("role");
-          this.$router.push(role === "hospital" ? "/hospital" : "/dashboard");
+          const providerRoles = [
+            "hospital",
+            "doctor",
+            "researcher",
+            "auditor",
+            "insurance",
+            "emergency",
+          ];
+          this.$router.push(
+            providerRoles.includes(role) ? "/hospital" : "/dashboard"
+          );
         }
       },
     },
@@ -74,8 +89,17 @@ export default {
           this.$store.dispatch("updateUser", result.user);
           localStorage.setItem("role", result.user.role);
         }
-        const destination =
-          result.user?.role === "hospital" ? "/hospital" : "/dashboard";
+        const providerRoles = [
+          "hospital",
+          "doctor",
+          "researcher",
+          "auditor",
+          "insurance",
+          "emergency",
+        ];
+        const destination = providerRoles.includes(result.user?.role)
+          ? "/hospital"
+          : "/dashboard";
         this.$router.push(destination);
       }
     },

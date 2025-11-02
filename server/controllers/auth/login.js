@@ -49,6 +49,9 @@ module.exports = async (req, res) => {
             id: existsUser._id,
             email: existsUser.email,
             username: existsUser.username,
+            name: existsUser.name,
+            dateOfBirth: existsUser.dateOfBirth,
+            address: existsUser.address,
             role: existsUser.role,
           },
         })

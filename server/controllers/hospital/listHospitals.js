@@ -8,7 +8,11 @@ module.exports = async (req, res) => {
         .json({ error: "Only patients can view providers." });
     }
 
-    const providers = await User.find({ role: { $in: ["hospital", "doctor", "researcher"] } })
+    const providers = await User.find({
+      role: {
+        $in: ["hospital", "doctor", "researcher", "auditor", "insurance", "emergency"],
+      },
+    })
       .select("_id username email role")
       .sort({ username: 1 })
       .lean();

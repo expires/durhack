@@ -1,6 +1,14 @@
 import store from "./store";
 
 const authRoutes = ["/login", "/signup", "/reset"];
+const providerRoles = [
+  "hospital",
+  "doctor",
+  "researcher",
+  "auditor",
+  "insurance",
+  "emergency",
+];
 
 export default async (to, from, next) => {
   const bearer = localStorage.getItem("bearer");
@@ -13,14 +21,14 @@ export default async (to, from, next) => {
     }
 
     if (authRoutes.includes(to.path)) {
-      return next(role === "hospital" ? "/hospital" : "/dashboard");
+      return next(providerRoles.includes(role) ? "/hospital" : "/dashboard");
     }
 
-    if (to.path === "/hospital" && role !== "hospital") {
+    if (to.path === "/hospital" && !providerRoles.includes(role)) {
       return next("/dashboard");
     }
 
-    if (to.path === "/dashboard" && role === "hospital") {
+    if (to.path === "/dashboard" && providerRoles.includes(role)) {
       return next("/hospital");
     }
 

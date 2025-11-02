@@ -6,7 +6,14 @@ const checkUsername = require("../../utils/validation/checkUsername");
 
 module.exports = async (req, res) => {
   try {
-    const { email, username, password, role = "patient" } = req.body;
+    const {
+      email,
+      username,
+      password,
+      name,
+      dateOfBirth,
+      address,
+    } = req.body;
     const usernameLow = username.toLowerCase();
 
     if (!(email && username && password)) {
@@ -15,10 +22,6 @@ module.exports = async (req, res) => {
         .send(
           JSON.stringify({ error: "Please provide all required information." })
         );
-    } else if (!["patient", "hospital"].includes(role)) {
-      return res
-        .status(400)
-        .send(JSON.stringify({ error: "Invalid user role supplied." }));
     } else if (!checkEmail(email) || !checkUsername(username)) {
       return res
         .status(400)
@@ -32,6 +35,16 @@ module.exports = async (req, res) => {
       return res
         .status(400)
         .send(JSON.stringify({ error: "Username is unavailable" }));
+    }
+
+    let parsedDob = null;
+    if (dateOfBirth) {
+      parsedDob = new Date(dateOfBirth);
+      if (Number.isNaN(parsedDob.getTime())) {
+        return res
+          .status(400)
+          .send(JSON.stringify({ error: "Invalid date of birth format." }));
+      }
     }
 
     const existsEmail = await user.findOne({ email });
@@ -49,7 +62,10 @@ module.exports = async (req, res) => {
       email: email.toLowerCase(),
       username: usernameLow,
       password: encryptedPassword,
-      role,
+      name,
+      dateOfBirth: parsedDob || undefined,
+      address,
+      role: "patient",
       profilePicture: "./src/assets/images/logo.png",
       displayName: usernameLow,
       aboutMe: "",
@@ -68,6 +84,9 @@ module.exports = async (req, res) => {
           id: newUser._id,
           email: newUser.email,
           username: newUser.username,
+          name: newUser.name,
+          dateOfBirth: newUser.dateOfBirth,
+          address: newUser.address,
           role: newUser.role,
         },
       })

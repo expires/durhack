@@ -11,6 +11,9 @@ module.exports = async (req, res) => {
             id: req.user._id,
             email: req.user.email,
             username: req.user.username,
+            name: req.user.name,
+            dateOfBirth: req.user.dateOfBirth,
+            address: req.user.address,
             role: req.user.role,
           },
         })

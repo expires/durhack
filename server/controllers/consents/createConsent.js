@@ -43,7 +43,6 @@ module.exports = async (req, res) => {
       providerId: providerIdFromBody,
       hospitalId: legacyHospitalId,
       recordIds = [],
-      purpose,
       expiresAt,
     } = req.body;
 
@@ -78,7 +77,19 @@ module.exports = async (req, res) => {
         .json({ error: "Select at least one record to authorize." });
     }
 
-    const selectedPurpose = PURPOSES.includes(purpose) ? purpose : "care";
+    let purpose = "care";
+    if (provider.role === "researcher") {
+      purpose = "research";
+    } else if (provider.role === "auditor") {
+      purpose = "audit";
+    } else if (provider.role === "insurance") {
+      purpose = "billing";
+    } else if (provider.role === "emergency") {
+      purpose = "emergency";
+    }
+    if (!PURPOSES.includes(purpose)) {
+      purpose = "care";
+    }
 
     let scopes = ["records.read"];
     if (["doctor", "hospital"].includes(provider.role)) {
@@ -94,7 +105,7 @@ module.exports = async (req, res) => {
       providerId,
       recordIds: authorizedRecords.map((r) => r._id),
       scopes,
-      purpose: selectedPurpose,
+      purpose,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     };
     if (provider.role === "hospital") {

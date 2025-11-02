@@ -6,6 +6,7 @@ import Signup from "../views/Signup.vue";
 import Reset from "../views/Reset.vue";
 import Dashboard from "../views/Dashboard.vue";
 import HospitalDashboard from "../views/HospitalDashboard.vue";
+import AddHospital from "../views/AddHospital.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,6 +25,12 @@ const router = createRouter({
       path: "/hospital",
       name: "hospital dashboard",
       component: HospitalDashboard,
+      beforeEnter: authRedirect,
+    },
+    {
+      path: "/add-hospital",
+      name: "add hospital",
+      component: AddHospital,
       beforeEnter: authRedirect,
     },
     {

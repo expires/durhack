@@ -10,6 +10,8 @@ import putReset from "./putReset";
 import postUpload from "./postUpload";
 import getFiles from "./getFiles";
 import getVerify from "./getVerify";
+import updateProfile from "./updateProfile";
+import addHospital from "./addHospital";
 
 export {
   postSignup,
@@ -21,4 +23,6 @@ export {
   postUpload,
   getFiles,
   getVerify,
+  updateProfile,
+  addHospital,
 };
