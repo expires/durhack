@@ -98,11 +98,7 @@ export default {
             </b-button>
           </div>
           <div class="mb-4">
-            <div class="input-group search-bar">
-              <span class="input-group-text bg-transparent border-light text-white-50">
-                <i class="uil uil-search"></i>
-              </span>
-              
+            <div class="input-group input search-bar input-frosted">
               <input
                 type="text"
                 class="form-control frosted-sub text-white mb-4"
@@ -233,5 +229,81 @@ export default {
 
 .search-bar .form-control::placeholder {
   color: rgba(255, 255, 255, 0.55);
+}
+
+.frosted {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  color: #fff;
+}
+
+.frosted-sub {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  color: #fff;
+}
+
+.table {
+  color: #fff;
+}
+.table thead tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.table tbody tr {
+  transition: background 0.2s ease;
+}
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.badge {
+  font-size: 0.75rem;
+  padding: 0.4em 0.6em;
+  border-radius: 0.5rem;
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+.btn-outline-light:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-select {
+  background: rgba(255, 255, 255, 0.03);
+}
+.record-select label {
+  cursor: pointer;
+}
+.record-select input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.overview-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-height: 92px;
 }
 </style>
