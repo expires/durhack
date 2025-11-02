@@ -11,6 +11,16 @@ export default {
       filteredPatients: [],
       searchQuery: "",
       loading: false,
+      purposeOptions: [
+        { value: "care", text: "Direct Care / Treatment" },
+        { value: "research", text: "Research & Studies" },
+        { value: "audit", text: "Audit & Compliance" },
+        { value: "billing", text: "Billing & Insurance" },
+        { value: "referral", text: "Referral / Consultation" },
+        { value: "emergency", text: "Emergency Access" },
+        { value: "data_portability", text: "Data Portability" },
+        { value: "legal", text: "Legal / Forensics" },
+      ],
     };
   },
   async mounted() {
@@ -86,6 +96,10 @@ export default {
         return { label: "Expired", variant: "bg-warning" };
       }
       return { label: "Active", variant: "bg-success" };
+    },
+    purposeLabel(value) {
+      const match = this.purposeOptions.find((option) => option.value === value);
+      return match ? match.text : value;
     },
   },
 };
@@ -171,7 +185,7 @@ export default {
                       </span>
                     </td>
                     <td class="text-white-50">
-                      {{ entry.purpose || "care" }}
+                      {{ purposeLabel(entry.purpose) }}
                     </td>
                     <td>
                       <span class="badge" :class="entry.statusVariant">

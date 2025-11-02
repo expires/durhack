@@ -8,6 +8,7 @@ module.exports = async (req, res) => {
     }
 
     const consents = await Consent.find({ patientId: req.user._id })
+      .populate("providerId", "username email role")
       .populate("hospitalId", "username email role")
       .sort({ createdAt: -1 })
       .lean();
@@ -26,11 +27,19 @@ module.exports = async (req, res) => {
 
     const formatted = consents.map((consent) => ({
       consentId: consent.consentId,
-      hospital: consent.hospitalId
+      provider: consent.providerId
+        ? {
+            id: consent.providerId._id,
+            username: consent.providerId.username,
+            email: consent.providerId.email,
+            role: consent.providerId.role,
+          }
+        : consent.hospitalId
         ? {
             id: consent.hospitalId._id,
             username: consent.hospitalId.username,
             email: consent.hospitalId.email,
+            role: consent.hospitalId.role,
           }
         : null,
       scopes: consent.scopes,

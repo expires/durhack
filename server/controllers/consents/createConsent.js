@@ -5,9 +5,19 @@ const {
   Transaction,
   PublicKey,
 } = require("@solana/web3.js");
-const Consent = require("../../models/consent");
+const ConsentModel = require("../../models/consent");
 const Record = require("../../models/record");
 const User = require("../../models/user");
+
+const PURPOSES = ConsentModel.PURPOSES || [
+  "care",
+  "research",
+  "audit",
+  "billing",
+  "referral",
+  "emergency",
+  "data_portability",
+];
 
 const SOLANA_URL = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
 const connection = new Connection(SOLANA_URL, "confirmed");
@@ -29,16 +39,23 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: "Only patients can create consents." });
     }
 
-    const { hospitalId, recordIds = [], scopes = [], purpose, expiresAt } =
-      req.body;
+    const {
+      providerId: providerIdFromBody,
+      hospitalId: legacyHospitalId,
+      recordIds = [],
+      purpose,
+      expiresAt,
+    } = req.body;
 
-    if (!hospitalId) {
-      return res.status(400).json({ error: "Hospital ID is required." });
+    const providerId = providerIdFromBody || legacyHospitalId;
+
+    if (!providerId) {
+      return res.status(400).json({ error: "Provider ID is required." });
     }
 
-    const hospital = await User.findById(hospitalId);
-    if (!hospital || hospital.role !== "hospital") {
-      return res.status(404).json({ error: "Hospital not found." });
+    const provider = await User.findById(providerId);
+    if (!provider || provider.role === "patient") {
+      return res.status(404).json({ error: "Provider not found." });
     }
 
     let authorizedRecords = [];
@@ -61,22 +78,34 @@ module.exports = async (req, res) => {
         .json({ error: "Select at least one record to authorize." });
     }
 
+    const selectedPurpose = PURPOSES.includes(purpose) ? purpose : "care";
+
+    let scopes = ["records.read"];
+    if (["doctor", "hospital"].includes(provider.role)) {
+      scopes = ["records.read", "records.write", "labs.read", "labs.write"];
+    } else if (provider.role === "researcher") {
+      scopes = ["records.read", "labs.read"];
+    }
+
     const consentId = crypto.randomUUID();
     const consentDoc = {
       consentId,
       patientId: req.user._id,
-      hospitalId,
+      providerId,
       recordIds: authorizedRecords.map((r) => r._id),
-      scopes: scopes.length ? scopes : ["records.read"],
-      purpose: purpose || "care",
+      scopes,
+      purpose: selectedPurpose,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     };
+    if (provider.role === "hospital") {
+      consentDoc.hospitalId = provider._id;
+    }
 
     const receiptHash = hashConsent({
       ...consentDoc,
       recordIds: consentDoc.recordIds.map((id) => id.toString()),
       patientId: consentDoc.patientId.toString(),
-      hospitalId: consentDoc.hospitalId.toString(),
+      providerId: consentDoc.providerId.toString(),
     });
 
     const memoPayload = `BRIDGEHEALTH_CONSENT:${consentId}:${receiptHash}`;
@@ -89,7 +118,7 @@ module.exports = async (req, res) => {
     const tx = new Transaction().add(memoInstruction);
     const signature = await connection.sendTransaction(tx, [payer]);
 
-    const consent = await Consent.create({
+    const consent = await ConsentModel.create({
       ...consentDoc,
       solanaTx: signature,
       receiptHash,

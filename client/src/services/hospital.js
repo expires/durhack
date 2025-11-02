@@ -14,18 +14,18 @@ export async function getHospitalPatients(API_URI, bearer) {
   }
 }
 
-export async function getHospitals(API_URI, bearer) {
+export async function getProviders(API_URI, bearer) {
   try {
     const headers = new Headers();
     headers.append("Authorization", "Bearer " + bearer);
 
-    const response = await fetch(`${API_URI}hospitals`, {
+    const response = await fetch(`${API_URI}providers`, {
       method: "GET",
       headers,
     });
     return await response.json();
   } catch (error) {
-    console.error("❌ List Hospitals Error:", error);
-    return { error: "Failed to fetch hospitals" };
+    console.error("❌ List Providers Error:", error);
+    return { error: "Failed to fetch providers" };
   }
 }

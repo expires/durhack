@@ -22,13 +22,15 @@ const buildSignedUrl = async (gcsUrl) => {
 
 module.exports = async (req, res) => {
   try {
-    if (!req.user || req.user.role !== "hospital") {
+    if (!req.user || !["hospital", "doctor", "researcher"].includes(req.user.role)) {
       return res
         .status(403)
-        .json({ error: "Only hospitals can view authorized patients." });
+        .json({ error: "Only providers can view authorized patients." });
     }
 
-    const consents = await Consent.find({ hospitalId: req.user._id })
+    const consents = await Consent.find({
+      $or: [{ providerId: req.user._id }, { hospitalId: req.user._id }],
+    })
       .populate("patientId", "username email role")
       .sort({ createdAt: -1 })
       .lean();
@@ -85,7 +87,7 @@ module.exports = async (req, res) => {
 
     return res.json({ patients: response });
   } catch (err) {
-    console.error("Error listing hospital consents:", err);
-    return res.status(500).json({ error: "Failed to list hospital consents." });
+    console.error("Error listing provider consents:", err);
+    return res.status(500).json({ error: "Failed to list provider consents." });
   }
 };

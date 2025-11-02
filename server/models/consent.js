@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const PURPOSES = [
+  "care",
+  "research",
+  "audit",
+  "billing",
+  "referral",
+  "emergency",
+  "data_portability",
+  "legal",
+];
+
 const ConsentSchema = new mongoose.Schema(
   {
     consentId: { type: String, unique: true, required: true },
@@ -12,6 +23,11 @@ const ConsentSchema = new mongoose.Schema(
     hospitalId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
+      index: true,
+    },
+    providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "user",
       required: true,
       index: true,
     },
@@ -22,7 +38,12 @@ const ConsentSchema = new mongoose.Schema(
       },
     ],
     scopes: [{ type: String, required: true }],
-    purpose: { type: String, default: "care" },
+    purpose: {
+      type: String,
+      enum: PURPOSES,
+      default: "care",
+      required: true,
+    },
     expiresAt: { type: Date },
     revokedAt: { type: Date },
     solanaTx: { type: String },
@@ -32,3 +53,4 @@ const ConsentSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("consent", ConsentSchema);
+module.exports.PURPOSES = PURPOSES;

@@ -1,7 +1,7 @@
 <script>
 import { getAuth, postUpload, getFiles } from "../services/index";
 import { createConsent, getConsents, revokeConsent } from "../services/consents";
-import { getHospitals } from "../services/hospital";
+import { getProviders } from "../services/hospital";
 import Nav from "../components/elements/Nav.vue";
 
 export default {
@@ -17,13 +17,22 @@ export default {
       showConsentForm: false,
       consentSubmitting: false,
       newConsent: {
-        hospitalId: "",
-        scopes: "records.read",
+        providerId: "",
         purpose: "care",
         expiresAt: "",
       },
       selectedRecordIds: [],
-      hospitals: [],
+      providers: [],
+      purposeOptions: [
+        { value: "care", text: "Direct Care / Treatment" },
+        { value: "research", text: "Research & Studies" },
+        { value: "audit", text: "Audit & Compliance" },
+        { value: "billing", text: "Billing & Insurance" },
+        { value: "referral", text: "Referral / Consultation" },
+        { value: "emergency", text: "Emergency Access" },
+        { value: "data_portability", text: "Data Portability" },
+        { value: "legal", text: "Legal / Forensics" },
+      ],
     };
   },
   computed: {
@@ -61,7 +70,7 @@ export default {
 
       await this.fetchRecords();
       await this.fetchConsents();
-      await this.fetchHospitals();
+      await this.fetchProviders();
     },
     filterRecords() {
       const query = this.searchQuery.toLowerCase();
@@ -103,14 +112,14 @@ export default {
         this.loadingConsents = false;
       }
     },
-    async fetchHospitals() {
+    async fetchProviders() {
       const bearer = localStorage.getItem("bearer");
       if (!bearer) return;
       try {
-        const result = await getHospitals(this.$store.state.apiURI, bearer);
-        this.hospitals = result.hospitals || [];
+        const result = await getProviders(this.$store.state.apiURI, bearer);
+        this.providers = result.providers || [];
       } catch (err) {
-        console.error("Failed to fetch hospitals:", err);
+        console.error("Failed to fetch providers:", err);
       }
     },
     async handleFileSelect(event) {
@@ -169,15 +178,15 @@ export default {
       const bearer = localStorage.getItem("bearer");
       if (!bearer) return alert("Please log in first.");
 
-      if (!this.newConsent.hospitalId.trim()) {
-        return alert("Hospital ID is required.");
+      if (!this.newConsent.providerId) {
+        return alert("Provider selection is required.");
       }
 
-      const hospitalExists = this.hospitals.some(
-        (hospital) => hospital.id === this.newConsent.hospitalId
+      const providerExists = this.providers.some(
+        (provider) => provider.id === this.newConsent.providerId
       );
-      if (!hospitalExists) {
-        return alert("Selected hospital could not be found.");
+      if (!providerExists) {
+        return alert("Selected provider could not be found.");
       }
 
       if (!this.selectedRecordIds.length) {
@@ -187,13 +196,9 @@ export default {
       this.consentSubmitting = true;
       try {
         const payload = {
-          hospitalId: this.newConsent.hospitalId,
+          providerId: this.newConsent.providerId,
           recordIds: this.selectedRecordIds,
-          scopes: this.newConsent.scopes
-            .split(",")
-            .map((scope) => scope.trim())
-            .filter(Boolean),
-          purpose: this.newConsent.purpose.trim() || "care",
+          purpose: this.newConsent.purpose,
           expiresAt: this.newConsent.expiresAt || null,
         };
 
@@ -203,16 +208,15 @@ export default {
           payload
         );
 
-        if (result.success) {
-          this.showConsentForm = false;
-          this.newConsent = {
-            hospitalId: "",
-            scopes: "records.read",
-            purpose: "care",
-            expiresAt: "",
-          };
-          this.selectedRecordIds = [];
-          await this.fetchConsents();
+          if (result.success) {
+            this.showConsentForm = false;
+            this.newConsent = {
+              providerId: "",
+              purpose: "care",
+              expiresAt: "",
+            };
+            this.selectedRecordIds = [];
+            await this.fetchConsents();
         } else {
           alert(result.error || "Failed to create consent");
         }
@@ -256,6 +260,10 @@ export default {
     },
     consentStatusVariant(consent) {
       return this.consentStatus(consent).variant;
+    },
+    purposeLabel(value) {
+      const match = this.purposeOptions.find((option) => option.value === value);
+      return match ? match.text : value;
     },
   },
 };
@@ -378,59 +386,55 @@ export default {
           <!-- Consent Management -->
           <div class="p-3 rounded-3 mt-4">
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-              <h5 class="text-uppercase text-white-50 mb-0">Hospital Authorizations</h5>
+              <h5 class="text-uppercase text-white-50 mb-0">Provider Authorizations</h5>
               <button
                 class="btn btn-primary btn-sm px-3"
                 @click="showConsentForm = !showConsentForm"
               >
-                {{ showConsentForm ? "Close" : "Authorize Hospital" }}
+                {{ showConsentForm ? "Close" : "Authorize Provider" }}
               </button>
             </div>
 
             <div v-if="showConsentForm" class="frosted-sub p-3 rounded-3 mb-3">
               <div class="row g-3">
                 <div class="col-12 col-md-6">
-                  <label class="form-label">Select Hospital</label>
+                  <label class="form-label">Select Provider</label>
                   <div class="input-container">
                     <select
                       class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
-                      v-model="newConsent.hospitalId"
+                      v-model="newConsent.providerId"
                     >
                       <option disabled value="" class="text-dark">
-                        {{ hospitals.length ? "Select a hospital" : "No hospitals available" }}
+                        {{ providers.length ? "Select a provider" : "No providers available" }}
                       </option>
                       <option
-                        v-for="hospital in hospitals"
-                        :key="hospital.id"
-                        :value="hospital.id"
+                        v-for="provider in providers"
+                        :key="provider.id"
+                        :value="provider.id"
                         class="text-dark"
                       >
-                        {{ hospital.username }}
-                        <span v-if="hospital.email"> ({{ hospital.email }})</span>
+                        {{ provider.username }}
+                        <span v-if="provider.email"> ({{ provider.email }})</span>
                       </option>
                     </select>
                   </div>
                 </div>
                 <div class="col-12 col-md-6">
-                  <label class="form-label">Scopes (comma separated)</label>
-                  <div class="input-container">
-                    <input
-                      v-model="newConsent.scopes"
-                      type="text"
-                      class="w-100 h-100 pe-3"
-                      placeholder="records.read, labs.read"
-                    />
-                  </div>
-                </div>
-                <div class="col-12 col-md-6">
                   <label class="form-label">Purpose</label>
                   <div class="input-container">
-                    <input
+                    <select
+                      class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
                       v-model="newConsent.purpose"
-                      type="text"
-                      class="w-100 h-100 pe-3"
-                      placeholder="care"
-                    />
+                    >
+                      <option
+                        v-for="option in purposeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                        class="text-dark"
+                      >
+                        {{ option.text }}
+                      </option>
+                    </select>
                   </div>
                 </div>
                 <div class="col-12 col-md-6">
@@ -456,20 +460,17 @@ export default {
                   </label>
                   <div class="record-select border rounded-3 p-3">
                     <p v-if="!records.length" class="text-white-50 mb-0">
-                      Upload records to authorize them for hospitals.
+                      Upload records to authorize them for providers.
                     </p>
-                    <div
-                      v-else
-                      class="d-flex flex-wrap gap-3 align-items-center"
-                    >
+                    <div v-else class="record-list">
                       <label
                         v-for="record in records"
                         :key="record._id"
-                        class="d-flex align-items-center gap-2"
+                        class="d-flex align-items-center mb-2"
                       >
                         <input
                           type="checkbox"
-                          class="form-check-input"
+                          class="form-check-input me-2"
                           :value="record._id"
                           v-model="selectedRecordIds"
                         />
@@ -486,22 +487,22 @@ export default {
                   @click="handleCreateConsent"
                 >
                   <span v-if="consentSubmitting">Authorizing…</span>
-                  <span v-else>Authorize Hospital</span>
+                  <span v-else>Authorize Provider</span>
                 </button>
               </div>
             </div>
 
             <div v-if="loadingConsents" class="text-center text-white-50 py-4">
-              Loading hospital authorizations…
+              Loading provider authorizations…
             </div>
             <div v-else-if="!consents.length" class="text-center text-white-50 py-4">
-              No hospital authorizations yet.
+              No provider authorizations yet.
             </div>
             <div v-else class="table-responsive">
               <table class="table table-borderless align-middle text-white">
                 <thead>
                   <tr class="text-uppercase text-white-50 small">
-                    <th scope="col">Hospital</th>
+                    <th scope="col">Provider</th>
                     <th scope="col">Purpose</th>
                     <th scope="col">Records</th>
                     <th scope="col">Status</th>
@@ -517,13 +518,13 @@ export default {
                   >
                     <td>
                       <div class="fw-semibold">
-                        {{ consent.hospital?.username || "Unknown Hospital" }}
+                        {{ consent.provider?.username || "Unknown Provider" }}
                       </div>
                       <div class="text-white-50 small">
-                        {{ consent.hospital?.email || "No email" }}
+                        {{ consent.provider?.email || "No email" }}
                       </div>
                     </td>
-                    <td class="text-white-50">{{ consent.purpose || "care" }}</td>
+                    <td class="text-white-50">{{ purposeLabel(consent.purpose) }}</td>
                     <td class="text-white-50">
                       <ul class="list-unstyled mb-0">
                         <li v-for="record in consent.records" :key="record.id">
@@ -629,6 +630,12 @@ input::placeholder {
   font-size: 0.85rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .record-select {
