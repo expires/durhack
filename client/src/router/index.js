@@ -28,7 +28,7 @@ const router = createRouter({
       beforeEnter: authRedirect,
     },
     {
-      path: "/admin",
+      path: "/addprovider",
       name: "add hospital",
       component: AddHospital,
       beforeEnter: authRedirect,
