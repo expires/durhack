@@ -126,7 +126,7 @@ export default {
           </div>
         </Transition>
       </div>
-      <div class="input-container h-100 rounded-3 mb-2">
+      <div class="input-container h-100 rounded-3 my-2">
         <i class="uil uil-building" style="color: white"></i>
         <select
           class="w-100 h-100 pe-3 bg-transparent border-0 text-white"
