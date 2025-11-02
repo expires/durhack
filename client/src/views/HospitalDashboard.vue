@@ -105,7 +105,7 @@ export default {
               
               <input
                 type="text"
-                class="form-control bg-transparent border-light text-white"
+                class="form-control frosted-sub text-white mb-4"
                 placeholder="Search patients by name..."
                 v-model="searchQuery"
               />
